@@ -15,7 +15,3 @@ Another key aspect of the architecture is the persona and behavior layer. This c
 The system also includes self-updating and maintenance mechanisms. These are designed to allow Future to evolve over time by updating configuration, refreshing components, or improving capabilities automatically. This is a major part of the project’s identity: Future is not just a static assistant but an evolving platform that can grow through automated updates and continuous improvement. Such capabilities make it more aligned with the idea of an autonomous agent that can learn, adapt, and refine its behavior over time.
 
 From an engineering perspective, Future is best understood as a hybrid architecture that blends conversational AI, structured state management, tool use, external API integration, and personalized memory. Its design reflects a move toward systems that are not merely reactive but proactive—capable of maintaining context, deciding among multiple actions, and acting across a broader ecosystem of services. In that sense, Future is both a practical assistant and a research platform for exploring the structure of intelligent, adaptive agents.
-
-- a polished README “Architecture” section
-- a more formal technical breakdown with bullet points and subsystem names
-- a very detailed version written like a real open-source project overview
