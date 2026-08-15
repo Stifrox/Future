@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.pytest_cache/
+.mypy_cache/
+
+# Virtual environments
+venv/
+venv310/
+.future_runtime/
+
+# Environment and secrets
+.env
+*.env
+google_calendar_tokens.json
+spotify_tokens.json
+data/*token*.json
+
+# Local data stores and heavy artifacts
+db/
+memory,db/
+*.sqlite
+*.sqlite3
+*.db
+
+# Logs and generated outputs
+logs/
+generated/
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/

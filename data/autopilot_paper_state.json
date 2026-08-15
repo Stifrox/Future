@@ -1,0 +1,16 @@
+{
+  "portfolio": {
+    "cash": 96869.18364999996,
+    "positions": {
+      "AAPL": 0,
+      "NVDA": 0,
+      "AMZN": 0,
+      "TSLA": 0,
+      "META": 0
+    }
+  },
+  "goal": {
+    "target_value": 120000.0,
+    "target_reached": false
+  }
+}

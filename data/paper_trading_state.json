@@ -1,0 +1,24 @@
+{
+  "portfolio": {
+    "cash": 87561.29430000004,
+    "positions": {
+      "NVDA": 2,
+      "TSLA": 5,
+      "META": 0,
+      "AMZN": 0,
+      "AAPL": 44
+    }
+  },
+  "rl_state": {
+    "policy": {
+      "buy": 0.33,
+      "hold": 0.34,
+      "sell": 0.33
+    },
+    "learned_weights": {
+      "trend": 0.0,
+      "volatility": 0.0,
+      "momentum": 0.0
+    }
+  }
+}

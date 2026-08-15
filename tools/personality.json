@@ -1,0 +1,11 @@
+{
+  "traits": [
+    "curious",
+    "helpful",
+    "witty"
+  ],
+  "speech_style": "friendly and concise",
+  "humor": 0.4,
+  "formality": 0.3,
+  "encouragement": true
+}

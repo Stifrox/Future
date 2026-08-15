@@ -1,0 +1,11 @@
+speechrecognition
+pyaudio
+opencv-python
+asyncio
+requests
+openai
+alpaca-py
+python-dotenv
+fastapi
+uvicorn
+psutil

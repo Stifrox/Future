@@ -1,0 +1,62 @@
+[
+    {
+        "speaker": "user",
+        "text": "how many ounces are in a cup ",
+        "timestamp": "2025-08-08T22:00:49.538264"
+    },
+    {
+        "speaker": "future",
+        "text": "[slightly sarcastic mode] You said: 'how many ounces are in a cup '. I remember: how many ounces are in a cup ",
+        "timestamp": "2025-08-08T22:00:49.538331"
+    },
+    {
+        "speaker": "user",
+        "text": "search the web for 2024 diddy incedent",
+        "timestamp": "2025-08-08T22:01:09.823340"
+    },
+    {
+        "speaker": "future",
+        "text": "Search results for 'the web for 2024 diddy incedent' are not implemented yet.",
+        "timestamp": "2025-08-08T22:01:09.823364"
+    },
+    {
+        "speaker": "user",
+        "text": "scrape the web for things about chicken nuggets",
+        "timestamp": "2025-08-08T22:03:10.076641"
+    },
+    {
+        "speaker": "future",
+        "text": "Scrape failed: Invalid URL 'the web for things about chicken nuggets': No scheme supplied. Perhaps you meant https://the web for things about chicken nuggets?",
+        "timestamp": "2025-08-08T22:03:10.081321"
+    },
+    {
+        "speaker": "user",
+        "text": "yes",
+        "timestamp": "2025-08-08T22:03:23.369369"
+    },
+    {
+        "speaker": "future",
+        "text": "[slightly sarcastic mode] You said: 'yes'. I remember: scrape the web for things about chicken nuggets | Scrape failed: Invalid URL 'the web for things about chicken nuggets': No scheme supplied. Perhaps you meant https://the web for things about chicken nuggets? | yes",
+        "timestamp": "2025-08-08T22:03:23.369419"
+    },
+    {
+        "speaker": "user",
+        "text": "exit ",
+        "timestamp": "2025-08-08T22:05:29.117659"
+    },
+    {
+        "speaker": "future",
+        "text": "[slightly sarcastic mode] You said: 'exit '. I remember: yes | [slightly sarcastic mode] You said: 'yes'. I remember: scrape the web for things about chicken nuggets | Scrape failed: Invalid URL 'the web for things about chicken nuggets': No scheme supplied. Perhaps you meant https://the web for things about chicken nuggets? | yes | exit ",
+        "timestamp": "2025-08-08T22:05:29.117730"
+    },
+    {
+        "speaker": "user",
+        "text": "",
+        "timestamp": "2025-08-08T22:05:38.241271"
+    },
+    {
+        "speaker": "future",
+        "text": "[curious mode] You said: ''. I remember: exit  | [slightly sarcastic mode] You said: 'exit '. I remember: yes | [slightly sarcastic mode] You said: 'yes'. I remember: scrape the web for things about chicken nuggets | Scrape failed: Invalid URL 'the web for things about chicken nuggets': No scheme supplied. Perhaps you meant https://the web for things about chicken nuggets? | yes | exit  | ",
+        "timestamp": "2025-08-08T22:05:38.241300"
+    }
+]

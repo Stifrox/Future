@@ -1,0 +1,50 @@
+[
+  {
+    "timestamp": "2025-08-09T03:11:04.589583",
+    "user": "search the current price of bitcoin",
+    "assistant": "Searched web: the current price of bitcoin",
+    "combined": "search the current price of bitcoin\nSearched web: the current price of bitcoin"
+  },
+  {
+    "timestamp": "2025-08-09T03:11:39.644120",
+    "user": "what is the current price of bitcoin at",
+    "assistant": "[curious, helpful, witty] I saw you asked: 'what is the current price of bitcoin at'. Previously: search the current price of bitcoin / Searched web: the current price of bitcoin",
+    "combined": "what is the current price of bitcoin at\n[curious, helpful, witty] I saw you asked: 'what is the current price of bitcoin at'. Previously: search the current price of bitcoin / Searched web: the current price of bitcoin"
+  },
+  {
+    "timestamp": "2025-08-09T03:11:57.159818",
+    "user": "hey how are you doing",
+    "assistant": "[curious, helpful, witty] I'm running smoothly — ready to help. Previously: what is the current price of bitcoin at / [curious, helpful, witty] I saw you asked: 'what is the current price of bitcoin at'. Previously: search the current price of bitcoin / Searched web: the current price of bitcoin",
+    "combined": "hey how are you doing\n[curious, helpful, witty] I'm running smoothly — ready to help. Previously: what is the current price of bitcoin at / [curious, helpful, witty] I saw you asked: 'what is the current price of bitcoin at'. Previously: search the current price of bitcoin / Searched web: the current price of bitcoin"
+  },
+  {
+    "timestamp": "2025-08-09T03:13:37.937652",
+    "user": "can you give me a complete summary of the story of romeo and juliet",
+    "assistant": "[curious, helpful, witty] I saw you asked: 'can you give me a complete summary of the story of romeo and juliet'. Previously: what is the current price of bitcoin at / [curious, helpful, witty] I saw you asked: 'what is the current price of bitcoin at'. Previously: search the current price of bitcoin / Searched web: the current price of bitcoin | hey how are you doing / [curious, helpful, witty] I'm running smoothly — ready to help. Previously: what is the current price of bitcoin at / [curious, helpful, witty] I saw you asked: 'what is the current price of bitcoin at'. Previously: search the current price of bitcoin / Searched web: the current price of bitcoin | search the current price of bitcoin / Searched web: the current price of bitcoin",
+    "combined": "can you give me a complete summary of the story of romeo and juliet\n[curious, helpful, witty] I saw you asked: 'can you give me a complete summary of the story of romeo and juliet'. Previously: what is the current price of bitcoin at / [curious, helpful, witty] I saw you asked: 'what is the current price of bitcoin at'. Previously: search the current price of bitcoin / Searched web: the current price of bitcoin | hey how are you doing / [curious, helpful, witty] I'm running smoothly — ready to help. Previously: what is the current price of bitcoin at / [curious, helpful, witty] I saw you asked: 'what is the current price of bitcoin at'. Previously: search the current price of bitcoin / Searched web: the current price of bitcoin | search the current price of bitcoin / Searched web: the current price of bitcoin"
+  },
+  {
+    "timestamp": "2025-08-09T03:14:09.422248",
+    "user": "search the web and summarize the plot of romeo and juliet",
+    "assistant": "Searched web: the web and summarize the plot of romeo and juliet",
+    "combined": "search the web and summarize the plot of romeo and juliet\nSearched web: the web and summarize the plot of romeo and juliet"
+  },
+  {
+    "timestamp": "2025-08-09T03:14:59.430849",
+    "user": "scrape number five",
+    "assistant": "Scraped number five: Scrape error: Invalid URL 'number five': No scheme supplied. Perhaps you meant https://number five?...",
+    "combined": "scrape number five\nScraped number five: Scrape error: Invalid URL 'number five': No scheme supplied. Perhaps you meant https://number five?..."
+  },
+  {
+    "timestamp": "2025-08-09T03:15:08.604050",
+    "user": "scrape those previous links",
+    "assistant": "Scraped those previous links: Scrape error: Invalid URL 'those previous links': No scheme supplied. Perhaps you meant https://those previous links?...",
+    "combined": "scrape those previous links\nScraped those previous links: Scrape error: Invalid URL 'those previous links': No scheme supplied. Perhaps you meant https://those previous links?..."
+  },
+  {
+    "timestamp": "2025-08-09T03:16:29.526865",
+    "user": "hey future what are some good updates i could apply to you",
+    "assistant": "[curious, helpful, witty] I saw you asked: 'hey future what are some good updates i could apply to you'. Previously: hey how are you doing / [curious, helpful, witty] I'm running smoothly — ready to help. Previously: what is the current price of bitcoin at / [curious, helpful, witty] I saw you asked: 'what is the current price of bitcoin at'. Previously: search the current price of bitcoin / Searched web: the current price of bitcoin | can you give me a complete summary of the story of romeo and juliet / [curious, helpful, witty] I saw you asked: 'can you give me a complete summary of the story of romeo and juliet'. Previously: what is the current price of bitcoin at / [curious, helpful, witty] I saw you asked: 'what is the current price of bitcoin at'. Previously: search the current price of bitcoin / Searched web: the current price of bitcoin | hey how are you doing / [curious, helpful, witty] I'm running smoothly — ready to help. Previously: what is the current price of bitcoin at / [curious, helpful, witty] I saw you asked: 'what is the current price of bitcoin at'. Previously: search the current price of bitcoin / Searched web: the current price of bitcoin | search the current price of bitcoin / Searched web: the current price of bitcoin | what is the current price of bitcoin at / [curious, helpful, witty] I saw you asked: 'what is the current price of bitcoin at'. Previously: search the current price of bitcoin / Searched web: the current price of bitcoin",
+    "combined": "hey future what are some good updates i could apply to you\n[curious, helpful, witty] I saw you asked: 'hey future what are some good updates i could apply to you'. Previously: hey how are you doing / [curious, helpful, witty] I'm running smoothly — ready to help. Previously: what is the current price of bitcoin at / [curious, helpful, witty] I saw you asked: 'what is the current price of bitcoin at'. Previously: search the current price of bitcoin / Searched web: the current price of bitcoin | can you give me a complete summary of the story of romeo and juliet / [curious, helpful, witty] I saw you asked: 'can you give me a complete summary of the story of romeo and juliet'. Previously: what is the current price of bitcoin at / [curious, helpful, witty] I saw you asked: 'what is the current price of bitcoin at'. Previously: search the current price of bitcoin / Searched web: the current price of bitcoin | hey how are you doing / [curious, helpful, witty] I'm running smoothly — ready to help. Previously: what is the current price of bitcoin at / [curious, helpful, witty] I saw you asked: 'what is the current price of bitcoin at'. Previously: search the current price of bitcoin / Searched web: the current price of bitcoin | search the current price of bitcoin / Searched web: the current price of bitcoin | what is the current price of bitcoin at / [curious, helpful, witty] I saw you asked: 'what is the current price of bitcoin at'. Previously: search the current price of bitcoin / Searched web: the current price of bitcoin"
+  }
+]

@@ -1,0 +1,2149 @@
+﻿﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FUTURE - Personal Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-void:#0a0b0c;
+    --bg-void-2:#0d0f10;
+    --bg-panel:#15171a;
+    --bg-panel-raised:#1b1e21;
+    --bg-inset:#0e0f11;
+    --border:#26292d;
+    --border-bright:#35393e;
+    --steel:#8aacc4;
+    --steel-dim:#4d6577;
+    --steel-soft:rgba(138,172,196,0.12);
+    --amber:#d1993f;
+    --amber-soft:rgba(209,153,63,0.14);
+    --green:#6fa677;
+    --red:#bd5b4f;
+    --text-1:#e9e6e0;
+    --text-2:#c2c6cb;
+    --text-3:#8f949a;
+    --radius-s:3px;
+    --radius-m:6px;
+    --font-label:'Oswald', sans-serif;
+    --font-body:'Inter', sans-serif;
+    --font-mono:'IBM Plex Mono', monospace;
+  }
+
+  *{box-sizing:border-box; margin:0; padding:0;}
+
+  html,body{height:100%;}
+
+  body{
+    background:
+      radial-gradient(ellipse at 20% -10%, rgba(138,172,196,0.05), transparent 45%),
+      radial-gradient(ellipse at 100% 100%, rgba(209,153,63,0.03), transparent 40%),
+      var(--bg-void);
+    color:var(--text-1);
+    font-family:var(--font-body);
+    font-size:15px;
+    line-height:1.5;
+    overflow-x:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* subtle grain overlay for material realism */
+  body::before{
+    content:"";
+    position:fixed; inset:0;
+    pointer-events:none;
+    z-index:999;
+    opacity:0.035;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  ::selection{ background:var(--steel-soft); color:var(--text-1); }
+
+  button{ font-family:inherit; cursor:pointer; }
+  button:focus-visible,
+  input:focus-visible,
+  a:focus-visible{
+    outline:2px solid var(--steel);
+    outline-offset:2px;
+  }
+
+  .mono{ font-family:var(--font-mono); }
+
+  .app{
+    display:flex;
+    flex-direction:column;
+    min-height:100vh;
+  }
+
+  /* ---------- TOPBAR ---------- */
+  .topbar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:24px;
+    padding:14px 22px;
+    background:linear-gradient(180deg, var(--bg-panel-raised), var(--bg-panel));
+    border-bottom:1px solid var(--border);
+  }
+
+  .brand{
+    display:flex;
+    align-items:baseline;
+    gap:10px;
+    font-family:var(--font-label);
+    font-weight:600;
+    font-size:19px;
+    letter-spacing:2px;
+    color:var(--text-1);
+    white-space:nowrap;
+  }
+  .brand span{
+    font-size:9px;
+    font-weight:500;
+    letter-spacing:2.5px;
+    color:var(--text-3);
+    font-family:var(--font-body);
+  }
+
+  .topbar-center{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    font-family:var(--font-mono);
+  }
+  .topbar-center .time{
+    font-size:22px;
+    font-weight:600;
+    color:var(--text-1);
+    letter-spacing:0.5px;
+  }
+  .topbar-center .time small{ font-size:13px; color:var(--text-2); margin-left:2px;}
+  .topbar-center .date{
+    font-size:11px;
+    color:var(--text-3);
+    letter-spacing:1px;
+    text-transform:uppercase;
+  }
+  .topbar-center .divider{ width:1px; height:26px; background:var(--border-bright); }
+
+  .topbar-right{
+    display:flex;
+    align-items:center;
+    gap:18px;
+  }
+
+  .mini-stats{
+    display:flex;
+    gap:16px;
+    padding:6px 14px;
+    background:var(--bg-inset);
+    border:1px solid var(--border);
+    border-radius:var(--radius-m);
+  }
+  .mini-stat{ display:flex; flex-direction:column; align-items:center; gap:2px; min-width:38px;}
+  .mini-stat .k{ font-size:9px; letter-spacing:1px; color:var(--text-3); font-family:var(--font-label);}
+  .mini-stat .v{ font-size:13px; font-family:var(--font-mono); color:var(--steel); font-weight:600;}
+  .mini-stat .v.warn{ color:var(--amber); }
+
+  .icon-btn{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    width:36px; height:36px;
+    background:var(--bg-inset);
+    border:1px solid var(--border);
+    border-radius:var(--radius-m);
+    color:var(--text-2);
+    transition:border-color .15s ease, color .15s ease;
+  }
+  .icon-btn:hover{ border-color:var(--border-bright); color:var(--text-1); }
+  .icon-btn svg{ width:17px; height:17px; }
+
+  .conn-pill{
+    display:flex;
+    align-items:center;
+    gap:7px;
+    padding:6px 12px;
+    background:var(--bg-inset);
+    border:1px solid var(--border);
+    border-radius:var(--radius-m);
+    font-family:var(--font-label);
+    font-size:10px;
+    letter-spacing:1.5px;
+    color:var(--text-2);
+  }
+  .dot{ width:7px; height:7px; border-radius:50%; background:var(--text-3); flex-shrink:0; }
+  .dot.live{ background:var(--green); box-shadow:0 0 0 3px rgba(111,166,119,0.15); }
+  .dot.demo{ background:var(--amber); box-shadow:0 0 0 3px rgba(209,153,63,0.15); }
+
+  /* ---------- LAYOUT ---------- */
+  .layout{
+    display:grid;
+    grid-template-columns:280px 1fr 320px;
+    gap:1px;
+    background:var(--border);
+    flex:1;
+    min-height:0;
+  }
+
+  .col{
+    background:var(--bg-void-2);
+    padding:16px;
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+    overflow-y:auto;
+    max-height:calc(100vh - 66px);
+  }
+
+  .col::-webkit-scrollbar{ width:8px; }
+  .col::-webkit-scrollbar-track{ background:transparent; }
+  .col::-webkit-scrollbar-thumb{ background:var(--border-bright); border-radius:4px; }
+
+  /* ---------- NAV ---------- */
+  .nav{
+    display:flex;
+    flex-direction:column;
+    gap:2px;
+    background:var(--bg-panel);
+    border:1px solid var(--border);
+    border-radius:var(--radius-m);
+    padding:6px;
+  }
+  .nav-item{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:9px 10px;
+    background:transparent;
+    border:none;
+    border-radius:var(--radius-s);
+    color:var(--text-2);
+    font-family:var(--font-label);
+    font-size:13px;
+    letter-spacing:1px;
+    text-align:left;
+    transition:background .15s ease, color .15s ease;
+  }
+  .nav-item svg{ width:15px; height:15px; flex-shrink:0; opacity:0.85;}
+  .nav-item:hover{ background:var(--bg-panel-raised); color:var(--text-1); }
+  .nav-item.active{ background:var(--steel-soft); color:var(--steel); }
+  .nav-item .badge{
+    margin-left:auto;
+    font-family:var(--font-mono);
+    font-size:10px;
+    background:var(--bg-inset);
+    color:var(--text-2);
+    padding:1px 6px;
+    border-radius:8px;
+    border:1px solid var(--border);
+  }
+
+  /* ---------- PANEL ---------- */
+  .panel{
+    background:var(--bg-panel);
+    border:1px solid var(--border);
+    border-radius:var(--radius-m);
+    overflow:hidden;
+  }
+  .panel-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:10px 12px;
+    border-bottom:1px solid var(--border);
+    background:var(--bg-panel-raised);
+  }
+  .panel-title{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-family:var(--font-label);
+    font-size:12px;
+    letter-spacing:1.5px;
+    color:var(--text-2);
+    text-transform:uppercase;
+  }
+  .panel-title svg{ width:14px; height:14px; color:var(--steel); }
+  .panel-tag{
+    font-family:var(--font-mono);
+    font-size:9px;
+    color:var(--text-3);
+    padding:2px 6px;
+    border:1px solid var(--border);
+    border-radius:8px;
+  }
+  .panel-tag.demo{ color:var(--amber); border-color:rgba(209,153,63,0.3); }
+  .panel-body{ padding:12px; }
+
+  .panel-link{
+    display:block;
+    text-align:right;
+    padding:8px 12px;
+    font-family:var(--font-label);
+    font-size:10px;
+    letter-spacing:1px;
+    color:var(--steel-dim);
+    border-top:1px solid var(--border);
+  }
+
+  /* ---------- SPOTIFY WIDGET ---------- */
+  .np-art{
+    width:100%;
+    aspect-ratio:1/1;
+    border-radius:var(--radius-s);
+    background:
+      linear-gradient(135deg, #2a2f33, #16181a 60%);
+    border:1px solid var(--border-bright);
+    margin-bottom:10px;
+    display:flex; align-items:center; justify-content:center;
+    color:var(--text-3);
+  }
+  .np-art svg{ width:34px; height:34px; opacity:0.4; }
+  .np-title{ font-weight:600; font-size:14px; color:var(--text-1); }
+  .np-artist{ font-size:12px; color:var(--text-2); margin-top:2px; }
+  .np-progress{
+    margin-top:12px;
+    height:3px;
+    background:var(--bg-inset);
+    border-radius:2px;
+    position:relative;
+    overflow:hidden;
+  }
+  .np-progress-fill{
+    position:absolute; left:0; top:0; bottom:0;
+    background:var(--steel);
+    border-radius:2px;
+  }
+  .np-times{
+    display:flex; justify-content:space-between;
+    font-family:var(--font-mono);
+    font-size:10px; color:var(--text-3);
+    margin-top:5px;
+  }
+  .np-controls{
+    display:flex; align-items:center; justify-content:center; gap:18px;
+    margin-top:12px;
+  }
+  .np-controls button{
+    background:none; border:none; color:var(--text-2);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .np-controls svg{ width:16px; height:16px; }
+  .np-controls .play-btn{
+    width:36px; height:36px;
+    border-radius:50%;
+    background:var(--steel-soft);
+    border:1px solid var(--steel-dim);
+    color:var(--steel);
+  }
+  .np-controls .play-btn svg{ width:15px; height:15px; }
+
+  /* ---------- LIST ROWS (calendar / gmail / files) ---------- */
+  .list-row{
+    display:flex;
+    align-items:flex-start;
+    gap:10px;
+    padding:9px 0;
+    border-bottom:1px solid var(--border);
+  }
+  .list-row:last-child{ border-bottom:none; padding-bottom:0; }
+  .list-row:first-child{ padding-top:0; }
+  .row-time{
+    font-family:var(--font-mono);
+    font-size:10.5px;
+    color:var(--text-3);
+    width:56px;
+    flex-shrink:0;
+    padding-top:1px;
+  }
+  .row-main{ flex:1; min-width:0; }
+  .row-title{ font-size:13px; color:var(--text-1); font-weight:600; }
+  .row-sub{ font-size:12px; color:var(--text-2); margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .row-dot-unread{ width:6px; height:6px; border-radius:50%; background:var(--amber); flex-shrink:0; margin-top:5px;}
+
+  /* ---------- CENTER / CHAT ---------- */
+  .col-center{ background:var(--bg-void-2); padding:16px 18px; }
+  .col-center{ overflow:hidden; }
+  .chat-header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding-bottom:12px; margin-bottom:12px;
+    border-bottom:1px solid var(--border);
+  }
+  .chat-header h1{
+    font-family:var(--font-label);
+    font-weight:500;
+    font-size:15px;
+    letter-spacing:0.5px;
+    color:var(--text-1);
+  }
+  .chat-header .sub{ font-size:12px; color:var(--text-2); margin-top:2px; }
+  .chat-status{
+    display:flex; align-items:center; gap:6px;
+    font-family:var(--font-mono); font-size:11px; color:var(--text-2);
+  }
+
+  .chat-thread{
+    flex:1;
+    min-height:0;
+    max-height:calc(100vh - 240px);
+    display:flex;
+    flex-direction:column;
+    gap:16px;
+    padding:6px 4px 12px;
+    overflow-y:auto;
+    overscroll-behavior:contain;
+  }
+  .chat-thread::-webkit-scrollbar{ width:8px; }
+  .chat-thread::-webkit-scrollbar-track{ background:transparent; }
+  .chat-thread::-webkit-scrollbar-thumb{ background:var(--border-bright); border-radius:4px; }
+  .msg{ max-width:84%; }
+  .msg.from-user{ align-self:flex-end; }
+  .msg .who{
+    font-family:var(--font-label);
+    font-size:10px;
+    letter-spacing:1.5px;
+    color:var(--text-3);
+    margin-bottom:5px;
+    text-transform:uppercase;
+  }
+  .msg.from-user .who{ text-align:right; color:var(--steel-dim);}
+  .msg .msg-body{ display:flex; flex-direction:column; gap:8px; }
+  .msg .bubble{
+    background:#1a1d20;
+    border:1px solid var(--border-bright);
+    padding:10px 13px;
+    border-radius:var(--radius-m);
+    font-size:15px;
+    color:var(--text-1);
+    line-height:1.6;
+  }
+  .msg .bubble p{ margin:0; }
+  .msg .bubble p + p{ margin-top:10px; }
+  .msg .bubble ul,
+  .msg .bubble ol{ margin:6px 0 0 18px; padding:0; }
+  .msg .bubble li + li{ margin-top:4px; }
+  .msg .bubble strong{ color:#f1f3f5; font-weight:600; }
+  .msg.from-user .bubble{
+    background:var(--steel-soft);
+    border-color:var(--steel-dim);
+  }
+  .msg .ts{
+    font-family:var(--font-mono); font-size:9.5px; color:var(--text-3);
+    margin-top:4px;
+  }
+  .msg.from-user .ts{ text-align:right; }
+
+  .code-bubble{
+    background:#131518;
+    border:1px solid var(--border-bright);
+    border-radius:var(--radius-m);
+    overflow:hidden;
+    margin-top:8px;
+  }
+  .code-bubble-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:6px 8px;
+    border-bottom:1px solid var(--border);
+    background:var(--bg-panel-raised);
+  }
+  .code-lang{
+    font-family:var(--font-mono);
+    font-size:10px;
+    letter-spacing:0.7px;
+    color:var(--text-3);
+    text-transform:lowercase;
+  }
+  .copy-code-btn{
+    border:1px solid var(--border-bright);
+    background:var(--bg-inset);
+    color:var(--text-2);
+    border-radius:var(--radius-s);
+    padding:3px 7px;
+    font-family:var(--font-label);
+    font-size:9px;
+    letter-spacing:0.8px;
+    text-transform:uppercase;
+  }
+  .copy-code-btn:hover{ color:var(--text-1); border-color:var(--steel-dim); }
+  .copy-code-btn.copied{ color:var(--green); border-color:rgba(111,166,119,0.35); }
+  .code-bubble pre{
+    margin:0;
+    padding:10px 12px;
+    max-width:100%;
+    overflow:auto;
+    background:transparent;
+  }
+  .code-bubble code{
+    font-family:var(--font-mono);
+    font-size:12.5px;
+    color:var(--text-1);
+    white-space:pre;
+  }
+
+  .chat-input-row{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding-top:14px;
+    border-top:1px solid var(--border);
+  }
+  .chat-input-row input{
+    flex:1;
+    background:var(--bg-inset);
+    border:1px solid var(--border);
+    border-radius:var(--radius-m);
+    padding:11px 14px;
+    color:var(--text-1);
+    font-family:var(--font-body);
+    font-size:15px;
+  }
+  .chat-input-row input:focus{ outline:none; border-color:var(--steel-dim); }
+  .chat-input-row input::placeholder{ color:var(--text-2); }
+  .chat-send{
+    width:40px; height:40px;
+    background:var(--steel-soft);
+    border:1px solid var(--steel-dim);
+    border-radius:var(--radius-m);
+    color:var(--steel);
+    display:flex; align-items:center; justify-content:center;
+    flex-shrink:0;
+  }
+  .chat-send svg{ width:16px; height:16px; }
+  .chat-mic-lock{
+    width:40px; height:40px;
+    background:var(--bg-inset);
+    border:1px solid var(--border);
+    border-radius:var(--radius-m);
+    color:var(--text-2);
+    display:flex; align-items:center; justify-content:center;
+    flex-shrink:0;
+  }
+  .chat-mic-lock.active{
+    color:var(--steel);
+    border-color:var(--steel-dim);
+    background:var(--steel-soft);
+  }
+  .chat-mic-lock svg{ width:16px; height:16px; }
+
+  .calendar-range{
+    display:flex;
+    gap:8px;
+    margin-bottom:10px;
+  }
+  .calendar-range-btn{
+    border:1px solid var(--border-bright);
+    background:var(--bg-panel-raised);
+    color:var(--text-2);
+    border-radius:999px;
+    font-family:var(--font-label);
+    font-size:10px;
+    letter-spacing:0.9px;
+    text-transform:uppercase;
+    padding:5px 10px;
+  }
+  .calendar-range-btn.active{
+    border-color:var(--steel-dim);
+    background:var(--steel-soft);
+    color:var(--steel);
+  }
+
+  /* ---------- GAUGES ---------- */
+  .gauge-grid{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:10px;
+  }
+  .gauge{
+    display:flex; flex-direction:column; align-items:center; gap:6px;
+  }
+  .gauge svg{ width:100%; height:auto; }
+  .gauge .g-val{
+    font-family:var(--font-mono); font-weight:600; font-size:13px; color:var(--text-1);
+    margin-top:-38px;
+  }
+  .gauge .g-label{
+    font-family:var(--font-label); font-size:9px; letter-spacing:1px; color:var(--text-3);
+  }
+
+  /* ---------- STOCKS ---------- */
+  .stock-row{
+    display:flex; align-items:center; gap:10px;
+    padding:8px 0;
+    border-bottom:1px solid var(--border);
+  }
+  .stock-row:last-child{ border-bottom:none; padding-bottom:0;}
+  .stock-row:first-child{ padding-top:0;}
+  .stock-id{ width:46px; flex-shrink:0; }
+  .stock-id .t{ font-family:var(--font-mono); font-weight:600; font-size:12.5px; color:var(--text-1);}
+  .stock-id .n{ font-size:9.5px; color:var(--text-3); }
+  .stock-spark{ flex:1; height:24px; }
+  .stock-spark svg{ width:100%; height:100%; }
+  .stock-price{ text-align:right; flex-shrink:0; }
+  .stock-price .p{ font-family:var(--font-mono); font-size:12.5px; color:var(--text-1); }
+  .stock-price .c{ font-family:var(--font-mono); font-size:10.5px; }
+  .up{ color:var(--green); }
+  .down{ color:var(--red); }
+
+  /* ---------- SLICER ---------- */
+  .print-preview{
+    display:flex; align-items:center; gap:12px;
+    margin-bottom:10px;
+  }
+  .print-thumb{
+    width:52px; height:52px;
+    background:var(--bg-inset);
+    border:1px solid var(--border-bright);
+    border-radius:var(--radius-s);
+    display:flex; align-items:center; justify-content:center;
+    color:var(--steel-dim);
+    flex-shrink:0;
+  }
+  .print-thumb svg{ width:26px; height:26px; }
+  .print-name{ font-size:13px; font-weight:600; color:var(--text-1); }
+  .print-file{ font-size:11px; color:var(--text-3); margin-top:2px; }
+  .print-bar{
+    height:6px;
+    background:var(--bg-inset);
+    border-radius:3px;
+    overflow:hidden;
+    border:1px solid var(--border);
+    margin:10px 0 8px;
+  }
+  .print-bar-fill{
+    height:100%;
+    background:linear-gradient(90deg, var(--steel-dim), var(--steel));
+  }
+  .print-meta{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:8px;
+    margin-top:10px;
+  }
+  .print-meta div{
+    background:var(--bg-inset);
+    border:1px solid var(--border);
+    border-radius:var(--radius-s);
+    padding:7px 8px;
+    text-align:center;
+  }
+  .print-meta .pv{ font-family:var(--font-mono); font-size:12.5px; color:var(--steel); font-weight:600; }
+  .print-meta .pk{ font-family:var(--font-label); font-size:8.5px; letter-spacing:1px; color:var(--text-3); margin-top:2px; }
+
+  /* ---------- FILES ---------- */
+  .file-row{
+    display:flex; align-items:center; gap:10px;
+    padding:8px 0; border-bottom:1px solid var(--border);
+  }
+  .file-row:last-child{ border-bottom:none; padding-bottom:0;}
+  .file-row:first-child{ padding-top:0;}
+  .file-row svg{ width:15px; height:15px; color:var(--steel-dim); flex-shrink:0;}
+  .file-row .fn{ flex:1; font-size:12.5px; color:var(--text-1); }
+  .file-row .fs{ font-family:var(--font-mono); font-size:10.5px; color:var(--text-3); }
+
+  /* ---------- MAP ---------- */
+  .map-frame{
+    aspect-ratio:16/10;
+    border-radius:var(--radius-s);
+    border:1px solid var(--border-bright);
+    position:relative;
+    overflow:hidden;
+    background:
+      repeating-linear-gradient(0deg, #16191b 0 39px, #1d2124 39px 40px),
+      repeating-linear-gradient(90deg, #16191b 0 39px, #1d2124 39px 40px);
+  }
+  .map-frame .river{
+    position:absolute; left:-10%; top:60%; width:120%; height:14px;
+    background:rgba(77,101,119,0.35);
+    transform:rotate(-6deg);
+  }
+  .map-pin{
+    position:absolute; left:52%; top:38%;
+    width:12px; height:12px;
+    background:var(--amber);
+    border-radius:50% 50% 50% 0;
+    transform:translate(-50%,-100%) rotate(-45deg);
+    box-shadow:0 0 0 3px rgba(209,153,63,0.18);
+  }
+  .map-footer{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-top:10px;
+  }
+  .map-footer .loc{ font-size:12px; color:var(--text-1); font-weight:500; }
+  .map-footer .addr{ font-size:10.5px; color:var(--text-3); }
+  .map-open{
+    font-family:var(--font-label); font-size:9.5px; letter-spacing:1px;
+    color:var(--steel); border:1px solid var(--steel-dim);
+    background:var(--steel-soft);
+    padding:6px 10px; border-radius:var(--radius-s);
+  }
+
+  /* ---------- BOTTOM STRIP ---------- */
+  .bottom-strip{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:1px;
+    background:var(--border);
+    border-top:1px solid var(--border);
+  }
+  .bottom-strip .panel{ border:none; border-radius:0; }
+
+  /* ---------- FUSION FILES ---------- */
+  .fusion-row{ display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--border); }
+  .fusion-row:last-child{ border-bottom:none; padding-bottom:0;}
+  .fusion-row:first-child{ padding-top:0;}
+  .fusion-row svg{ width:15px; height:15px; color:var(--steel-dim); flex-shrink:0; }
+  .fusion-row .fn{ flex:1; font-size:12.5px; color:var(--text-1); }
+  .fusion-row .ft{ font-family:var(--font-mono); font-size:10px; color:var(--text-3); }
+
+  /* ---------- USER FOOTER (left col bottom) ---------- */
+  .user-card{
+    display:flex; align-items:center; gap:10px;
+    padding:10px;
+    background:var(--bg-panel);
+    border:1px solid var(--border);
+    border-radius:var(--radius-m);
+    margin-top:auto;
+  }
+  .user-avatar{
+    width:34px; height:34px; border-radius:50%;
+    background:linear-gradient(135deg, var(--steel-dim), #2a2f33);
+    display:flex; align-items:center; justify-content:center;
+    font-family:var(--font-label); font-weight:600; font-size:13px; color:var(--text-1);
+    flex-shrink:0;
+  }
+  .user-meta .un{ font-size:12.5px; font-weight:600; color:var(--text-1); }
+  .user-meta .us{ font-size:10px; color:var(--green); display:flex; align-items:center; gap:5px; margin-top:1px;}
+
+  /* ---------- SETTINGS PANEL ---------- */
+  .settings-overlay{
+    position:fixed; inset:0;
+    background:rgba(5,6,7,0.6);
+    display:none;
+    align-items:center; justify-content:center;
+    z-index:1000;
+  }
+  .settings-overlay.open{ display:flex; }
+  .settings-modal{
+    width:480px;
+    max-width:92vw;
+    max-height:85vh;
+    overflow-y:auto;
+    background:var(--bg-panel);
+    border:1px solid var(--border-bright);
+    border-radius:var(--radius-m);
+    box-shadow:0 20px 60px rgba(0,0,0,0.5);
+  }
+  .settings-modal .panel-head{ padding:14px 16px; }
+  .settings-body{ padding:16px; display:flex; flex-direction:column; gap:18px; }
+  .settings-group label{
+    display:block;
+    font-family:var(--font-label); font-size:10px; letter-spacing:1.2px;
+    color:var(--text-3); margin-bottom:6px; text-transform:uppercase;
+  }
+  .settings-group input[type="text"], .settings-group input[type="number"]{
+    width:100%;
+    background:var(--bg-inset);
+    border:1px solid var(--border);
+    border-radius:var(--radius-s);
+    padding:9px 11px;
+    color:var(--text-1);
+    font-family:var(--font-mono);
+    font-size:12.5px;
+  }
+  .settings-group input:focus{ outline:none; border-color:var(--steel-dim); }
+  .settings-group .hint{ font-size:10.5px; color:var(--text-3); margin-top:6px; line-height:1.5; }
+  .connections{ display:flex; flex-direction:column; gap:8px; }
+  .connection-row{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:9px 11px;
+    background:var(--bg-inset);
+    border:1px solid var(--border);
+    border-radius:var(--radius-s);
+  }
+  .connection-row .cn{ font-size:12.5px; color:var(--text-1); }
+  .connect-btn{
+    font-family:var(--font-label); font-size:9.5px; letter-spacing:1px;
+    padding:5px 10px; border-radius:var(--radius-s);
+    background:transparent; border:1px solid var(--border-bright); color:var(--text-2);
+  }
+  .connect-btn.connected{ color:var(--green); border-color:rgba(111,166,119,0.35); }
+  .settings-actions{ display:flex; gap:10px; justify-content:flex-end; padding:14px 16px; border-top:1px solid var(--border); }
+  .btn{
+    font-family:var(--font-label); font-size:11px; letter-spacing:1px;
+    padding:9px 16px; border-radius:var(--radius-s); border:1px solid var(--border-bright);
+    background:var(--bg-panel-raised); color:var(--text-2);
+  }
+  .btn.primary{ background:var(--steel-soft); border-color:var(--steel-dim); color:var(--steel); }
+
+  /* ---------- COMPACT DROPDOWN LAYOUT ---------- */
+  .compact-mode .layout{
+    display:block;
+    background:transparent;
+    gap:0;
+  }
+  .compact-mode .col-left,
+  .compact-mode .col-right,
+  .compact-mode .bottom-strip{
+    display:none !important;
+  }
+  .compact-mode .col-center{
+    max-width:1160px;
+    width:100%;
+    margin:0 auto;
+    max-height:none;
+    min-height:calc(100vh - 66px);
+  }
+  .compact-mode .conn-pill,
+  .compact-mode .panel-tag,
+  .compact-mode .chat-status,
+  .compact-mode .nav,
+  .compact-mode .user-card{
+    display:none !important;
+  }
+
+  .compact-accordions{
+    margin-top:14px;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+  }
+  .compact-item{
+    border:1px solid var(--border);
+    border-radius:var(--radius-m);
+    background:var(--bg-panel);
+    overflow:hidden;
+  }
+  .compact-item summary{
+    list-style:none;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    padding:12px 14px;
+    font-family:var(--font-label);
+    letter-spacing:1px;
+    font-size:12px;
+    color:var(--text-1);
+    text-transform:uppercase;
+    background:var(--bg-panel-raised);
+  }
+  .compact-item summary::-webkit-details-marker{ display:none; }
+  .compact-item summary::after{
+    content:'+';
+    color:var(--steel);
+    font-family:var(--font-mono);
+    font-size:16px;
+    line-height:1;
+  }
+  .compact-item[open] summary::after{ content:'-'; }
+  .compact-content{
+    padding:0;
+    border-top:1px solid var(--border);
+  }
+  .compact-content .panel{
+    border:none;
+    border-radius:0;
+  }
+
+  @media (max-width: 1100px){
+    .layout{ grid-template-columns:1fr; }
+    .col{ max-height:none; }
+    .bottom-strip{ grid-template-columns:1fr; }
+    .chat-thread{ max-height:calc(100vh - 280px); }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    * { transition:none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ================= TOPBAR ================= -->
+  <header class="topbar">
+    <div class="brand">FUTURE <span>PERSONAL CONSOLE</span></div>
+
+    <div class="topbar-center">
+      <div>
+        <div class="time"><span id="clock-time">--:--</span><small id="clock-sec">:--</small></div>
+      </div>
+      <div class="divider"></div>
+      <div class="date" id="clock-date">-</div>
+    </div>
+
+    <div class="topbar-right">
+      <div class="mini-stats">
+        <div class="mini-stat"><span class="k">CPU</span><span class="v mono" id="mini-cpu">-</span></div>
+        <div class="mini-stat"><span class="k">RAM</span><span class="v mono" id="mini-ram">-</span></div>
+        <div class="mini-stat"><span class="k">GPU</span><span class="v mono" id="mini-gpu">-</span></div>
+        <div class="mini-stat"><span class="k">NET</span><span class="v mono" id="mini-net">-</span></div>
+      </div>
+      <div class="conn-pill"><span class="dot demo" id="conn-dot"></span><span id="conn-label">Ready</span></div>
+      <button class="icon-btn" onclick="Settings.open()" title="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- ================= MAIN LAYOUT ================= -->
+  <div class="layout">
+
+    <!-- ---------- LEFT COLUMN ---------- -->
+    <aside class="col col-left">
+      <nav class="nav">
+        <button class="nav-item active" data-view="chat">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          Chat
+        </button>
+        <button class="nav-item" data-view="calendar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+          Calendar
+        </button>
+        <button class="nav-item" data-view="gmail">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 6-10 7L2 6"/></svg>
+          Gmail <span class="badge" id="nav-mail-badge">3</span>
+        </button>
+        <button class="nav-item" data-view="spotify">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="10"/><path d="M8 14.5c2.7-1 5.3-1 8 0M7.5 11.3c3.2-1.2 6.3-1.2 9.5 0M7 8.2c3.7-1.4 7.3-1.4 11 0"/></svg>
+          Spotify
+        </button>
+        <button class="nav-item" data-view="fusion">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2 3 7l9 5 9-5-9-5zM3 17l9 5 9-5M3 12l9 5 9-5"/></svg>
+          Fusion 360
+        </button>
+        <button class="nav-item" data-view="slicer">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2v20M2 12h20M5 5l14 14M19 5 5 19"/></svg>
+          Slicer
+        </button>
+        <button class="nav-item" data-view="stocks">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 17 9 11l4 4 8-8M17 7h4v4"/></svg>
+          Stocks
+        </button>
+        <button class="nav-item" data-view="files">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+          Files
+        </button>
+        <button class="nav-item" data-view="maps">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 20 3 17V4l6 3m0 13 6-3m-6 3V7m6 10 6 3V7l-6-3m0 13V4m0 3-6-3"/></svg>
+          Maps
+        </button>
+      </nav>
+
+      <!-- SPOTIFY WIDGET -->
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="10"/><path d="M8 14.5c2.7-1 5.3-1 8 0M7.5 11.3c3.2-1.2 6.3-1.2 9.5 0M7 8.2c3.7-1.4 7.3-1.4 11 0"/></svg>
+            Now Playing
+          </div>
+          <span class="panel-tag demo" id="spotify-tag"></span>
+        </div>
+        <div class="panel-body">
+          <div class="np-art" id="np-art">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+          </div>
+          <div class="np-title" id="np-title">Nothing playing</div>
+          <div class="np-artist" id="np-artist">Connect Spotify to see live playback</div>
+          <div class="np-progress"><div class="np-progress-fill" id="np-progress-fill" style="width:0%"></div></div>
+          <div class="np-times"><span id="np-elapsed">0:00</span><span id="np-duration">0:00</span></div>
+          <div class="np-controls">
+            <button onclick="Spotify.control('prev')"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zM20 6v12l-8.5-6z"/></svg></button>
+            <button class="play-btn" id="np-play-btn" onclick="Spotify.control('toggle')"><svg viewBox="0 0 24 24" fill="currentColor" id="np-play-icon"><path d="M8 5v14l11-7z"/></svg></button>
+            <button onclick="Spotify.control('next')"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 6h2v12h-2zM4 6v12l8.5-6z"/></svg></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- CALENDAR WIDGET -->
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+            <span id="calendar-title">Today</span>
+          </div>
+          <span class="panel-tag demo" id="calendar-tag"></span>
+        </div>
+        <div class="panel-body" id="calendar-list">
+          <div class="calendar-range" id="calendar-range-controls">
+            <button class="calendar-range-btn active" type="button" data-range="today">Today</button>
+            <button class="calendar-range-btn" type="button" data-range="tomorrow">Tomorrow</button>
+            <button class="calendar-range-btn" type="button" data-range="week">Week</button>
+          </div>
+          <div class="list-row"><div class="row-time">10:30</div><div class="row-main"><div class="row-title">Project briefing</div><div class="row-sub">Conf room B - 12 attendees</div></div></div>
+          <div class="list-row"><div class="row-time">12:00</div><div class="row-main"><div class="row-title">Lunch - Alex</div><div class="row-sub">Home</div></div></div>
+          <div class="list-row"><div class="row-time">14:30</div><div class="row-main"><div class="row-title">Design review</div><div class="row-sub">Fusion 360 - Camera Mount v3</div></div></div>
+          <div class="list-row"><div class="row-time">18:00</div><div class="row-main"><div class="row-title">Gym</div><div class="row-sub">Lower body</div></div></div>
+        </div>
+      </div>
+
+      <!-- GMAIL WIDGET -->
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 6-10 7L2 6"/></svg>
+            Inbox
+          </div>
+          <span class="panel-tag demo" id="gmail-tag"></span>
+        </div>
+        <div class="panel-body" id="gmail-list">
+          <div class="list-row"><div class="row-dot-unread"></div><div class="row-main"><div class="row-title">McMaster-Carr</div><div class="row-sub">Your order #48213 has shipped</div></div><div class="row-time">9:02</div></div>
+          <div class="list-row"><div class="row-dot-unread"></div><div class="row-main"><div class="row-title">Sarah Chen</div><div class="row-sub">Re: bracket tolerances</div></div><div class="row-time">8:41</div></div>
+          <div class="list-row"><div class="row-dot-unread"></div><div class="row-main"><div class="row-title">Autodesk</div><div class="row-sub">Your Fusion 360 subscription renews</div></div><div class="row-time">Yst</div></div>
+        </div>
+      </div>
+
+      <div class="user-card">
+        <div class="user-avatar">L</div>
+        <div class="user-meta">
+          <div class="un">Liam</div>
+          <div class="us"><span class="dot live"></span>Online</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ---------- CENTER CHAT ---------- -->
+    <main class="col col-center">
+      <div class="chat-header">
+        <div>
+          <h1>Future Console</h1>
+          <div class="sub">Ask Future about your schedule, prints, files, or anything</div>
+        </div>
+        <div class="chat-status"><span class="dot demo" id="chat-status-dot"></span><span id="chat-status-label">Chat ready</span></div>
+      </div>
+
+      <div class="chat-thread" id="chat-thread">
+        <div class="msg">
+          <div class="who">Future</div>
+          <div class="bubble">Hello sir, what can I help you with today?</div>
+          <div class="ts">9:00 AM</div>
+        </div>
+      </div>
+
+      <form class="chat-input-row" id="chat-form">
+        <input type="text" id="chat-input" placeholder="Message Future..." autocomplete="off">
+        <button type="button" class="chat-mic-lock" id="chat-mic-lock" title="Voice lock off"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 14a3 3 0 0 0 3-3V7a3 3 0 1 0-6 0v4a3 3 0 0 0 3 3Z"/><path d="M19 11a7 7 0 0 1-14 0"/><path d="M12 18v4"/><path d="M8 22h8"/></svg></button>
+        <button type="submit" class="chat-send"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/></svg></button>
+      </form>
+    </main>
+
+    <!-- ---------- RIGHT COLUMN ---------- -->
+    <aside class="col col-right">
+
+      <!-- SYSTEM PERFORMANCE -->
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 12h4l2-8 4 16 2-8h6"/></svg>
+            System Performance
+          </div>
+          <span class="panel-tag" id="perf-tag"></span>
+        </div>
+        <div class="panel-body">
+          <div class="gauge-grid">
+            <div class="gauge" data-gauge="cpu">
+              <svg viewBox="0 0 100 60"><path d="M10 55 A 40 40 0 0 1 90 55" fill="none" stroke="#22262a" stroke-width="7" stroke-linecap="round"/><path class="arc" d="M10 55 A 40 40 0 0 1 90 55" fill="none" stroke="#8aacc4" stroke-width="7" stroke-linecap="round" stroke-dasharray="126" stroke-dashoffset="88"/></svg>
+              <div class="g-val" id="gauge-cpu-val">-</div>
+              <div class="g-label">CPU</div>
+            </div>
+            <div class="gauge" data-gauge="ram">
+              <svg viewBox="0 0 100 60"><path d="M10 55 A 40 40 0 0 1 90 55" fill="none" stroke="#22262a" stroke-width="7" stroke-linecap="round"/><path class="arc" d="M10 55 A 40 40 0 0 1 90 55" fill="none" stroke="#8aacc4" stroke-width="7" stroke-linecap="round" stroke-dasharray="126" stroke-dashoffset="80"/></svg>
+              <div class="g-val" id="gauge-ram-val">-</div>
+              <div class="g-label">RAM</div>
+            </div>
+            <div class="gauge" data-gauge="gpu">
+              <svg viewBox="0 0 100 60"><path d="M10 55 A 40 40 0 0 1 90 55" fill="none" stroke="#22262a" stroke-width="7" stroke-linecap="round"/><path class="arc" d="M10 55 A 40 40 0 0 1 90 55" fill="none" stroke="#8aacc4" stroke-width="7" stroke-linecap="round" stroke-dasharray="126" stroke-dashoffset="115"/></svg>
+              <div class="g-val" id="gauge-gpu-val">-</div>
+              <div class="g-label">GPU</div>
+            </div>
+            <div class="gauge" data-gauge="net">
+              <svg viewBox="0 0 100 60"><path d="M10 55 A 40 40 0 0 1 90 55" fill="none" stroke="#22262a" stroke-width="7" stroke-linecap="round"/><path class="arc" d="M10 55 A 40 40 0 0 1 90 55" fill="none" stroke="#8aacc4" stroke-width="7" stroke-linecap="round" stroke-dasharray="126" stroke-dashoffset="122"/></svg>
+              <div class="g-val" id="gauge-net-val">-</div>
+              <div class="g-label">NET</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- STOCKS -->
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 17 9 11l4 4 8-8M17 7h4v4"/></svg>
+            Watchlist
+          </div>
+          <span class="panel-tag demo" id="stocks-tag"></span>
+        </div>
+        <div class="panel-body" id="stocks-list">
+          <!-- rows injected by JS -->
+        </div>
+      </div>
+
+      <!-- FUSION 360 -->
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2 3 7l9 5 9-5-9-5zM3 17l9 5 9-5M3 12l9 5 9-5"/></svg>
+            Fusion 360 - Recent
+          </div>
+          <span class="panel-tag demo" id="fusion-tag"></span>
+        </div>
+        <div class="panel-body" id="fusion-list">
+          <div class="fusion-row"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2 3 7l9 5 9-5-9-5zM3 17l9 5 9-5M3 12l9 5 9-5"/></svg><div class="fn">Camera Mount v3</div><div class="ft">9:42 AM</div></div>
+          <div class="fusion-row"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/></svg><div class="fn">Robotic Arm v2</div><div class="ft">Yesterday</div></div>
+          <div class="fusion-row"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 4h16v16H4z"/></svg><div class="fn">Finger Modification v1</div><div class="ft">Mar 29</div></div>
+        </div>
+        <a class="panel-link" href="#">Open Fusion 360 -></a>
+      </div>
+
+      <!-- ANYCUBIC SLICER -->
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2v20M2 12h20M5 5l14 14M19 5 5 19"/></svg>
+            Kobra 3 Combo — Print Job
+          </div>
+          <span class="panel-tag demo" id="slicer-tag"></span>
+        </div>
+        <div class="panel-body">
+          <div class="print-preview">
+            <div class="print-thumb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2 3 7l9 5 9-5-9-5zM3 17l9 5 9-5M3 12l9 5 9-5"/></svg></div>
+            <div>
+              <div class="print-name" id="print-name">Printer is empty</div>
+              <div class="print-file" id="slicer-status-text">No active print job</div>
+            </div>
+          </div>
+          <div class="print-bar"><div class="print-bar-fill" id="print-bar-fill" style="width:0%"></div></div>
+          <div class="print-meta">
+            <div><div class="pv" id="print-pct">0%</div><div class="pk">PROGRESS</div></div>
+            <div><div class="pv" id="print-eta">--</div><div class="pk">TIME LEFT</div></div>
+            <div><div class="pv" id="print-temp">0 deg</div><div class="pk">NOZZLE</div></div>
+          </div>
+        </div>
+      </div>
+
+    </aside>
+  </div>
+
+  <!-- ================= BOTTOM STRIP ================= -->
+  <div class="bottom-strip">
+    <!-- FILES -->
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+          Recent Downloads
+        </div>
+        <span class="panel-tag demo" id="files-tag"></span>
+      </div>
+      <div class="panel-body" id="files-list">
+        <div class="file-row"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><div class="fn">Documents</div><div class="fs">23.4 GB</div></div>
+        <div class="file-row"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><div class="fn">Projects</div><div class="fs">128.7 GB</div></div>
+        <div class="file-row"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><div class="fn">Designs</div><div class="fs">68.9 GB</div></div>
+        <div class="file-row"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><div class="fn">Print Files</div><div class="fs">4.2 GB</div></div>
+      </div>
+    </div>
+
+    <!-- MAPS -->
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 20 3 17V4l6 3m0 13 6-3m-6 3V7m6 10 6 3V7l-6-3m0 13V4m0 3-6-3"/></svg>
+          Location
+        </div>
+        <span class="panel-tag demo" id="maps-tag"></span>
+      </div>
+      <div class="panel-body">
+        <div class="map-frame"><div class="river"></div><div class="map-pin"></div></div>
+        <div class="map-footer">
+          <div><div class="loc" id="map-loc">Home Workshop</div><div class="addr" id="map-addr">8765 50th St W, Lonsdale MN</div></div>
+          <button class="map-open">Open Maps -></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ================= SETTINGS MODAL ================= -->
+<div class="settings-overlay" id="settings-overlay">
+  <div class="settings-modal">
+    <div class="panel-head">
+      <div class="panel-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Settings
+      </div>
+      <button class="icon-btn" onclick="Settings.close()" style="width:28px;height:28px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="settings-body">
+      <div class="settings-group">
+        <label>Backend API base URL</label>
+        <input type="text" id="settings-api-base" value="http://localhost:8000">
+        <div class="hint">Your Python backend's root URL. Future expects REST endpoints under this base - see the code comments in this file for the exact contract (routes, JSON shapes, and an optional chat WebSocket).</div>
+      </div>
+      <div class="settings-group">
+        <label>Poll interval (seconds)</label>
+        <input type="number" id="settings-poll-interval" value="5" min="1" max="60">
+        <div class="hint">How often widgets refresh from your backend (system stats, stocks, inbox, print status, etc).</div>
+      </div>
+      <div class="settings-group">
+        <label>Connected services</label>
+        <div class="connections">
+          <div class="connection-row"><span class="cn">Spotify</span><button class="connect-btn">Connect</button></div>
+          <div class="connection-row"><span class="cn">Gmail</span><button class="connect-btn">Connect</button></div>
+          <div class="connection-row"><span class="cn">Google Calendar</span><button class="connect-btn">Connect</button></div>
+          <div class="connection-row"><span class="cn">Fusion 360</span><button class="connect-btn">Connect</button></div>
+          <div class="connection-row"><span class="cn">Anycubic Slicer</span><button class="connect-btn">Connect</button></div>
+          <div class="connection-row"><span class="cn">Stock watchlist</span><button class="connect-btn">Connect</button></div>
+        </div>
+        <div class="hint">Connection state is expected to live on your backend (OAuth tokens etc). These buttons just call your backend's connect endpoints - wire them up in the JS "Settings.connect()" stub.</div>
+      </div>
+    </div>
+    <div class="settings-actions">
+      <button class="btn" onclick="Settings.close()">Cancel</button>
+      <button class="btn primary" onclick="Settings.save()">Apply</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const CONFIG = {
+  API_BASE: 'http://localhost:8000',
+  POLL_INTERVAL_MS: 5000,
+};
+
+let backendOnline = false;
+const serviceStatus = {
+  spotify: false,
+  calendar: false,
+  gmail: false,
+  stocks: false,
+  fusion: false,
+  slicer: false,
+  files: false,
+  maps: false,
+  chat: false,
+};
+
+const tagByService = {
+  spotify: 'spotify-tag',
+  calendar: 'calendar-tag',
+  gmail: 'gmail-tag',
+  stocks: 'stocks-tag',
+  fusion: 'fusion-tag',
+  slicer: 'slicer-tag',
+  files: 'files-tag',
+  maps: 'maps-tag',
+};
+
+async function api(path, opts) {
+  const res = await fetch(CONFIG.API_BASE + path, {
+    headers: { 'Content-Type': 'application/json' },
+    ...opts,
+  });
+  if (!res.ok) {
+    let detail = '';
+    try {
+      const payload = await res.json();
+      detail = payload.detail ? `: ${payload.detail}` : '';
+    } catch (_) {
+      detail = '';
+    }
+    throw new Error(`Bad response ${res.status}${detail}`);
+  }
+  return res.json();
+}
+
+function esc(text) {
+  return String(text ?? '').replace(/[&<>'"]/g, (ch) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  }[ch]));
+}
+
+function setTag(id, live) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = live ? 'LIVE' : 'DEMO';
+  el.classList.toggle('demo', !live);
+}
+
+function setServiceLive(service, live) {
+  serviceStatus[service] = !!live;
+  const tag = tagByService[service];
+  if (tag) setTag(tag, live);
+  updateConnBadge();
+}
+
+function updateConnBadge() {
+  const dot = document.getElementById('conn-dot');
+  const label = document.getElementById('conn-label');
+  const chatDot = document.getElementById('chat-status-dot');
+  const chatLabel = document.getElementById('chat-status-label');
+  const hasLiveService = backendOnline || Object.values(serviceStatus).some(Boolean);
+
+  dot.classList.toggle('live', hasLiveService);
+  dot.classList.toggle('demo', !hasLiveService);
+  label.textContent = 'Ready';
+
+  chatDot.classList.toggle('live', serviceStatus.chat);
+  chatDot.classList.toggle('demo', !serviceStatus.chat);
+  chatLabel.textContent = 'Chat ready';
+
+  const perfTag = document.getElementById('perf-tag');
+  if (perfTag) perfTag.textContent = '';
+}
+
+function tickClock() {
+  const now = new Date();
+  const h = now.getHours() % 12 || 12;
+  const m = String(now.getMinutes()).padStart(2, '0');
+  const s = String(now.getSeconds()).padStart(2, '0');
+  const ampm = now.getHours() >= 12 ? 'PM' : 'AM';
+  document.getElementById('clock-time').textContent = `${h}:${m}`;
+  document.getElementById('clock-sec').textContent = `:${s} ${ampm}`;
+  document.getElementById('clock-date').textContent = now.toLocaleDateString('en-US', {
+    weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
+  });
+}
+setInterval(tickClock, 1000);
+tickClock();
+
+function setGauge(name, pct, valText) {
+  const g = document.querySelector(`.gauge[data-gauge="${name}"] .arc`);
+  const v = document.getElementById(`gauge-${name}-val`);
+  const CIRC = 126;
+  if (g) g.style.strokeDashoffset = CIRC - (CIRC * Math.min(Math.max(pct, 0), 100) / 100);
+  if (v) v.textContent = valText;
+}
+
+async function refreshSystemStats() {
+  try {
+    const stats = await api('/api/system/stats');
+    backendOnline = true;
+    document.getElementById('mini-cpu').textContent = stats.cpu + '%';
+    document.getElementById('mini-ram').textContent = stats.ram + '%';
+    document.getElementById('mini-gpu').textContent = stats.gpu + '%';
+    document.getElementById('mini-net').textContent = stats.net_mbps + 'M';
+    setGauge('cpu', stats.cpu, stats.cpu + '%');
+    setGauge('ram', stats.ram, stats.ram + '%');
+    setGauge('gpu', stats.gpu, stats.gpu + '%');
+    setGauge('net', Math.min(stats.net_mbps * 4, 100), stats.net_mbps + 'M');
+  } catch (e) {
+    backendOnline = false;
+    document.getElementById('mini-cpu').textContent = '--';
+    document.getElementById('mini-ram').textContent = '--';
+    document.getElementById('mini-gpu').textContent = '--';
+    document.getElementById('mini-net').textContent = '--';
+    setGauge('cpu', 0, '--');
+    setGauge('ram', 0, '--');
+    setGauge('gpu', 0, '--');
+    setGauge('net', 0, '--');
+  }
+  updateConnBadge();
+}
+
+function fmtTime(sec) {
+  sec = Math.max(0, Math.round(sec || 0));
+  return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+}
+
+const Spotify = {
+  isPlaying: false,
+  iconSvg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>',
+  async refresh() {
+    try {
+      const np = await api('/api/spotify/now-playing');
+      const art = document.getElementById('np-art');
+      if (np.album_image_url) {
+        art.style.backgroundImage = `url('${np.album_image_url}')`;
+        art.style.backgroundSize = 'cover';
+        art.style.backgroundPosition = 'center';
+        art.innerHTML = '';
+      } else {
+        art.style.backgroundImage = '';
+        art.style.backgroundSize = '';
+        art.style.backgroundPosition = '';
+        art.innerHTML = this.iconSvg;
+      }
+      document.getElementById('np-title').textContent = np.track || 'Nothing playing';
+      document.getElementById('np-artist').textContent = np.artist || 'Spotify connected';
+      const pct = np.duration_sec ? (np.elapsed_sec / np.duration_sec) * 100 : 0;
+      document.getElementById('np-progress-fill').style.width = pct + '%';
+      document.getElementById('np-elapsed').textContent = fmtTime(np.elapsed_sec);
+      document.getElementById('np-duration').textContent = fmtTime(np.duration_sec);
+      this.isPlaying = !!np.is_playing;
+      document.getElementById('np-play-icon').innerHTML = this.isPlaying
+        ? '<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>'
+        : '<path d="M8 5v14l11-7z"/>';
+      setServiceLive('spotify', true);
+    } catch (e) {
+      const art = document.getElementById('np-art');
+      art.style.backgroundImage = '';
+      art.style.backgroundSize = '';
+      art.style.backgroundPosition = '';
+      art.innerHTML = this.iconSvg;
+      document.getElementById('np-title').textContent = 'Spotify unavailable';
+      document.getElementById('np-artist').textContent = 'Connect Spotify in Settings';
+      document.getElementById('np-progress-fill').style.width = '0%';
+      document.getElementById('np-elapsed').textContent = '0:00';
+      document.getElementById('np-duration').textContent = '0:00';
+      this.isPlaying = false;
+      document.getElementById('np-play-icon').innerHTML = '<path d="M8 5v14l11-7z"/>';
+      setServiceLive('spotify', false);
+    }
+  },
+  async control(action) {
+    if (action === 'toggle') action = this.isPlaying ? 'pause' : 'play';
+    try {
+      await api('/api/spotify/control', { method: 'POST', body: JSON.stringify({ action }) });
+      this.isPlaying = action === 'play' ? true : action === 'pause' ? false : this.isPlaying;
+      setServiceLive('spotify', true);
+    } catch (e) {
+      setServiceLive('spotify', false);
+    }
+    this.refresh();
+  }
+};
+
+function sparkPath(vals) {
+  const w = 100;
+  const h = 24;
+  const min = Math.min(...vals);
+  const max = Math.max(...vals);
+  const step = w / (vals.length - 1);
+  const pts = vals.map((v, i) => {
+    const y = h - ((v - min) / (max - min || 1)) * h;
+    return `${i * step},${y}`;
+  });
+  return `M${pts.join(' L')}`;
+}
+
+async function refreshStocks() {
+  let stocks = [];
+  let live = false;
+  try {
+    const data = await api('/api/stocks/watchlist');
+    if (Array.isArray(data) && data.length) {
+      stocks = data;
+      live = true;
+    }
+  } catch (e) {
+    live = false;
+  }
+
+  const rows = stocks.map((s) => {
+    const spark = Array.isArray(s.spark) && s.spark.length >= 2 ? s.spark : [0, Number(s.change_pct || 0), Number(s.change_pct || 0) * 0.8 + 0.2];
+    const up = s.change_pct >= 0;
+    return `<div class="stock-row">
+      <div class="stock-id"><div class="t">${esc(s.ticker)}</div><div class="n">${esc(s.name)}</div></div>
+      <div class="stock-spark"><svg viewBox="0 0 100 24" preserveAspectRatio="none"><path d="${sparkPath(spark)}" fill="none" stroke="${up ? '#6fa677' : '#bd5b4f'}" stroke-width="1.6"/></svg></div>
+      <div class="stock-price"><div class="p">$${Number(s.price || 0).toFixed(2)}</div><div class="c ${up ? 'up' : 'down'}">${up ? '+' : ''}${Number(s.change_pct || 0).toFixed(2)}%</div></div>
+    </div>`;
+  }).join('');
+  document.getElementById('stocks-list').innerHTML = rows || '<div class="row-sub">No live watchlist data available.</div>';
+  setServiceLive('stocks', live);
+}
+
+let calendarRange = 'today';
+function calendarRangeLabel(range) {
+  if (range === 'tomorrow') return 'Tomorrow';
+  if (range === 'week') return 'This Week';
+  return 'Today';
+}
+
+function renderCalendarRows(events) {
+  const controls = `<div class="calendar-range" id="calendar-range-controls">
+    <button class="calendar-range-btn ${calendarRange === 'today' ? 'active' : ''}" type="button" data-range="today">Today</button>
+    <button class="calendar-range-btn ${calendarRange === 'tomorrow' ? 'active' : ''}" type="button" data-range="tomorrow">Tomorrow</button>
+    <button class="calendar-range-btn ${calendarRange === 'week' ? 'active' : ''}" type="button" data-range="week">Week</button>
+  </div>`;
+  const rows = events.map((e) =>
+    `<div class="list-row"><div class="row-time">${esc(e.time)}</div><div class="row-main"><div class="row-title">${esc(e.title)}</div><div class="row-sub">${esc(e.subtitle || '')}</div></div></div>`
+  ).join('');
+  const emptyLabel = calendarRange === 'week' ? 'No events found for this week.' : `No upcoming events ${calendarRange === 'tomorrow' ? 'tomorrow' : 'today'}.`;
+  return controls + (rows || `<div class="row-sub">${emptyLabel}</div>`);
+}
+
+async function refreshCalendar() {
+  try {
+    const events = await api(`/api/calendar/events?range=${encodeURIComponent(calendarRange)}`);
+    document.getElementById('calendar-list').innerHTML = renderCalendarRows(events);
+    const title = document.getElementById('calendar-title');
+    if (title) title.textContent = calendarRangeLabel(calendarRange);
+    setServiceLive('calendar', true);
+  } catch (e) {
+    const controls = `<div class="calendar-range" id="calendar-range-controls">
+      <button class="calendar-range-btn ${calendarRange === 'today' ? 'active' : ''}" type="button" data-range="today">Today</button>
+      <button class="calendar-range-btn ${calendarRange === 'tomorrow' ? 'active' : ''}" type="button" data-range="tomorrow">Tomorrow</button>
+      <button class="calendar-range-btn ${calendarRange === 'week' ? 'active' : ''}" type="button" data-range="week">Week</button>
+    </div>`;
+    document.getElementById('calendar-list').innerHTML = controls + '<div class="row-sub">Calendar unavailable. Reconnect Google to load events.</div>';
+    setServiceLive('calendar', false);
+  }
+}
+
+function mailTime(raw) {
+  if (!raw) return '';
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return String(raw).slice(0, 12);
+  return parsed.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+}
+
+async function refreshGmail() {
+  try {
+    const mail = await api('/api/gmail/inbox?limit=5');
+    document.getElementById('gmail-list').innerHTML = mail.map((m) =>
+      `<div class="list-row">${m.unread ? '<div class="row-dot-unread"></div>' : '<div style="width:6px"></div>'}<div class="row-main"><div class="row-title">${esc(m.from)}</div><div class="row-sub">${esc(m.subject)}</div></div><div class="row-time">${esc(mailTime(m.time))}</div></div>`
+    ).join('');
+    document.getElementById('nav-mail-badge').textContent = String(mail.filter((m) => m.unread).length);
+    setServiceLive('gmail', true);
+  } catch (e) {
+    document.getElementById('gmail-list').innerHTML = '<div class="row-sub">Gmail unavailable. Reconnect Google to load inbox.</div>';
+    document.getElementById('nav-mail-badge').textContent = '0';
+    setServiceLive('gmail', false);
+  }
+}
+
+async function refreshFusion() {
+  try {
+    const files = await api('/api/fusion360/recent-files');
+    const rows = files.map((f) =>
+      `<div class="fusion-row"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2 3 7l9 5 9-5-9-5zM3 17l9 5 9-5M3 12l9 5 9-5"/></svg><div class="fn">${esc(f.name)}</div><div class="ft">${esc(f.modified)}</div></div>`
+    ).join('');
+    document.getElementById('fusion-list').innerHTML = rows || '<div class="row-sub">No Fusion project files found yet.</div>';
+    setServiceLive('fusion', true);
+  } catch (e) {
+    document.getElementById('fusion-list').innerHTML = '<div class="row-sub">Fusion project list unavailable.</div>';
+    setServiceLive('fusion', false);
+  }
+}
+
+async function refreshFiles() {
+  try {
+    const files = await api('/api/files/directory?path=/');
+    const rows = files.map((f) =>
+      `<div class="file-row"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><div class="fn">${esc(f.name)}</div><div class="fs">${esc(f.size)}</div></div>`
+    ).join('');
+    document.getElementById('files-list').innerHTML = rows || '<div class="row-sub">No downloads found yet.</div>';
+    setServiceLive('files', true);
+  } catch (e) {
+    document.getElementById('files-list').innerHTML = '<div class="row-sub">Downloads view unavailable.</div>';
+    setServiceLive('files', false);
+  }
+}
+
+async function refreshMaps() {
+  try {
+    const loc = await api('/api/maps/location');
+    document.getElementById('map-loc').textContent = loc.label;
+    document.getElementById('map-addr').textContent = loc.address;
+    setServiceLive('maps', true);
+  } catch (e) {
+    setServiceLive('maps', false);
+  }
+}
+
+async function refreshSlicer() {
+  let s;
+  try {
+    s = await api('/api/anycubic/status');
+    setServiceLive('slicer', true);
+  } catch (e) {
+    s = { printing: false, file: 'No active print', layer: 0, layer_total: 0, progress_pct: 0, eta: '--', nozzle_temp: 0 };
+    setServiceLive('slicer', false);
+  }
+  document.getElementById('print-name').textContent = s.printing ? (s.file || 'Active print') : 'Printer is empty';
+  document.getElementById('slicer-status-text').textContent = s.printing
+    ? `Printing - layer ${s.layer} / ${s.layer_total}`
+    : 'No active print job';
+  document.getElementById('print-bar-fill').style.width = s.progress_pct + '%';
+  document.getElementById('print-pct').textContent = s.progress_pct + '%';
+  document.getElementById('print-eta').textContent = s.eta;
+  document.getElementById('print-temp').textContent = s.nozzle_temp + ' deg';
+}
+
+const chatForm = document.getElementById('chat-form');
+const chatInput = document.getElementById('chat-input');
+const chatThread = document.getElementById('chat-thread');
+const chatMicLock = document.getElementById('chat-mic-lock');
+const codeBlockStore = new Map();
+let codeBlockCounter = 0;
+
+let voiceLockEnabled = false;
+let voiceRecognizer = null;
+let voiceRestartTimer = null;
+let activeTtsAudio = null;
+let activeTtsObjectUrl = '';
+let voiceConversationUntil = 0;
+const VOICE_FOLLOWUP_WINDOW_MS = 25000;
+
+function detectVoiceModeCommand(text) {
+  const lower = String(text || '').trim().toLowerCase();
+  if (!lower) return '';
+
+  const onPhrases = [
+    'voice mode on',
+    'voice lock on',
+    'turn voice mode on',
+    'turn voice lock on',
+    'turn on voice mode',
+    'turn on voice lock',
+    'enable voice mode',
+    'enable voice lock',
+  ];
+  const offPhrases = [
+    'voice mode off',
+    'voice lock off',
+    'turn voice mode off',
+    'turn voice lock off',
+    'turn off voice mode',
+    'turn off voice lock',
+    'disable voice mode',
+    'disable voice lock',
+  ];
+
+  if (onPhrases.some((phrase) => lower.includes(phrase))) return 'on';
+  if (offPhrases.some((phrase) => lower.includes(phrase))) return 'off';
+  return '';
+}
+
+function hasSpeechRecognition() {
+  return typeof window.SpeechRecognition !== 'undefined' || typeof window.webkitSpeechRecognition !== 'undefined';
+}
+
+function createSpeechRecognizer() {
+  const SpeechCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechCtor) return null;
+  const rec = new SpeechCtor();
+  rec.continuous = true;
+  rec.interimResults = false;
+  rec.lang = 'en-US';
+  rec.onresult = (event) => {
+    for (let i = event.resultIndex; i < event.results.length; i += 1) {
+      const result = event.results[i];
+      if (!result.isFinal) continue;
+      const transcript = String(result[0]?.transcript || '').trim();
+      if (!transcript) continue;
+
+      const modeCommand = detectVoiceModeCommand(transcript);
+      if (modeCommand === 'off') {
+        setVoiceLock(false, { source: 'voice' });
+        return;
+      }
+
+      const lower = transcript.toLowerCase();
+      const wake = 'future';
+
+      let command = '';
+      if (lower.includes(wake)) {
+        const idx = lower.indexOf(wake);
+        command = transcript.slice(idx + wake.length).replace(/^[\s,.:;-]+/, '').trim();
+        voiceConversationUntil = Date.now() + VOICE_FOLLOWUP_WINDOW_MS;
+      } else if (Date.now() <= voiceConversationUntil) {
+        command = transcript;
+      }
+
+      if (command) {
+        sendChat(command, { source: 'voice' });
+        voiceConversationUntil = Date.now() + VOICE_FOLLOWUP_WINDOW_MS;
+      } else {
+        if (lower.includes(wake)) {
+          addMessage('Future', 'I heard "Future". You can now talk normally for the next 25 seconds.');
+        }
+      }
+    }
+  };
+  rec.onerror = () => {
+    if (!voiceLockEnabled) return;
+    if (voiceRestartTimer) clearTimeout(voiceRestartTimer);
+    voiceRestartTimer = setTimeout(() => {
+      if (!voiceLockEnabled || !voiceRecognizer) return;
+      try { voiceRecognizer.start(); } catch (e) {}
+    }, 600);
+  };
+  rec.onend = () => {
+    if (!voiceLockEnabled || !voiceRecognizer) return;
+    if (voiceRestartTimer) clearTimeout(voiceRestartTimer);
+    voiceRestartTimer = setTimeout(() => {
+      if (!voiceLockEnabled || !voiceRecognizer) return;
+      try { voiceRecognizer.start(); } catch (e) {}
+    }, 350);
+  };
+  return rec;
+}
+
+function updateVoiceLockUi() {
+  if (!chatMicLock) return;
+  chatMicLock.classList.toggle('active', voiceLockEnabled);
+  chatMicLock.title = voiceLockEnabled
+    ? 'Voice lock on (say "Future" once, then continue speaking)'
+    : 'Voice lock off';
+}
+
+function setVoiceLock(enabled, opts = {}) {
+  const source = opts.source || 'ui';
+  const announce = opts.announce !== false;
+
+  if (enabled && !hasSpeechRecognition()) {
+    addMessage('Future', 'Voice lock is not supported in this browser.');
+    return;
+  }
+
+  voiceLockEnabled = enabled;
+  if (!enabled) voiceConversationUntil = 0;
+  if (!voiceRecognizer && voiceLockEnabled) voiceRecognizer = createSpeechRecognizer();
+
+  if (voiceLockEnabled && voiceRecognizer) {
+    try { voiceRecognizer.start(); } catch (e) {}
+    if (announce) {
+      const base = source === 'voice'
+        ? 'Voice mode is on.'
+        : 'Voice lock enabled.';
+      addMessage('Future', `${base} Say "Future" once, then talk normally for follow-up commands.`);
+    }
+  } else if (!voiceLockEnabled && voiceRecognizer) {
+    try { voiceRecognizer.stop(); } catch (e) {}
+    if (announce) addMessage('Future', 'Voice lock disabled.');
+  }
+
+  updateVoiceLockUi();
+}
+
+function isChatNearBottom() {
+  const remaining = chatThread.scrollHeight - chatThread.scrollTop - chatThread.clientHeight;
+  return remaining < 56;
+}
+
+function copyCodeFromButton(btn) {
+  const codeId = btn.getAttribute('data-code-id') || '';
+  const code = codeBlockStore.get(codeId) || '';
+  if (!code) return;
+
+  const markCopied = (ok) => {
+    btn.classList.remove('copied');
+    btn.textContent = ok ? 'COPIED' : 'COPY FAILED';
+    if (ok) btn.classList.add('copied');
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.textContent = 'COPY';
+    }, 1200);
+  };
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(code).then(() => markCopied(true)).catch(() => markCopied(false));
+    return;
+  }
+
+  const ta = document.createElement('textarea');
+  ta.value = code;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  try {
+    const copied = document.execCommand('copy');
+    markCopied(!!copied);
+  } catch (_) {
+    markCopied(false);
+  }
+  document.body.removeChild(ta);
+}
+
+function looksLikeCode(raw) {
+  const text = String(raw || '').trim();
+  if (!text) return false;
+  if (text.includes('```')) return true;
+
+  const lines = text.split('\n').filter((line) => line.trim().length > 0);
+  if (lines.length >= 4) {
+    const codeLineCount = lines.filter((line) => {
+      const t = line.trim();
+      return (
+        /^(def\s+\w+\(|class\s+\w+(\([^)]*\))?\s*:|class\s+\w+(\s+extends\s+\w+)?\s*\{|function\s+\w+\(|if\s*\(|for\s*\(|while\s*\(|return\b|const\s+\w+\s*=|let\s+\w+\s*=|var\s+\w+\s*=|#include\s*<|<\/?[a-z][^>]*>)/i.test(t)
+        || /^from\s+[a-zA-Z0-9_.]+\s+import\s+/.test(t)
+        || /^import\s+[a-zA-Z0-9_.]+(\s+as\s+[a-zA-Z0-9_]+)?\s*$/.test(t)
+        || t.endsWith(';')
+      );
+    }).length;
+    if (codeLineCount >= Math.max(2, Math.floor(lines.length * 0.4))) return true;
+  }
+
+  if (/(<!DOCTYPE html|<html|#include\s*<|\bdef\s+\w+\(|\bfunction\s+\w+\(|\bfrom\s+\w+[\w.]*\s+import\s+\w+|\bimport\s+\w+[\w.]*(\s+as\s+\w+)?\s*$|console\.log\(|\bclass\s+\w+(\([^)]*\))?\s*:|\bclass\s+\w+(\s+extends\s+\w+)?\s*\{)/im.test(text)) {
+    return true;
+  }
+  return false;
+}
+
+function firstCodeStartIndex(raw) {
+  const signatures = ['<!DOCTYPE html', '<html', '#include', 'def ', 'class ', 'function ', 'from ', 'import ', 'const ', 'let ', 'var ', 'console.log'];
+  const lowered = raw.toLowerCase();
+  let idx = -1;
+  for (const sig of signatures) {
+    const candidate = lowered.indexOf(sig.toLowerCase());
+    if (candidate !== -1 && (idx === -1 || candidate < idx)) idx = candidate;
+  }
+
+  // Do not split prose that starts with natural-language "from ...".
+  if (idx === 0 && /^(from\s+[A-Z][a-z]+\b|importantly\b)/.test(raw.trim())) {
+    return -1;
+  }
+  return idx;
+}
+
+function makeCodeCard(lang, codeText) {
+  const card = document.createElement('div');
+  card.className = 'code-bubble';
+
+  const head = document.createElement('div');
+  head.className = 'code-bubble-head';
+
+  const langSpan = document.createElement('span');
+  langSpan.className = 'code-lang';
+  langSpan.textContent = (lang || 'code').toLowerCase();
+
+  const copyBtn = document.createElement('button');
+  copyBtn.type = 'button';
+  copyBtn.className = 'copy-code-btn';
+  copyBtn.textContent = 'COPY';
+
+  const codeId = `code-${++codeBlockCounter}`;
+  codeBlockStore.set(codeId, codeText);
+  copyBtn.setAttribute('data-code-id', codeId);
+
+  const pre = document.createElement('pre');
+  const code = document.createElement('code');
+  code.textContent = codeText;
+  pre.appendChild(code);
+
+  head.appendChild(langSpan);
+  head.appendChild(copyBtn);
+  card.appendChild(head);
+  card.appendChild(pre);
+  return card;
+}
+
+function appendPlainBubble(container, plainText) {
+  const text = String(plainText || '').trim();
+  if (!text) return;
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.innerHTML = renderBubbleText(text);
+  container.appendChild(bubble);
+}
+
+function formatInlineMarkdown(text) {
+  let html = esc(text || '');
+  html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  return html;
+}
+
+function renderBubbleText(text) {
+  let raw = String(text || '').replace(/\r/g, '').trim();
+  raw = raw.replace(/^`+\s*/, '').replace(/\s*`+$/, '');
+
+  // Convert single-line pseudo lists into actual list lines.
+  if (!raw.includes('\n') && (raw.match(/\s-\s/g) || []).length >= 2) {
+    raw = raw.replace(/\s-\s/g, '\n- ');
+  }
+
+  const blocks = raw.split(/\n\s*\n/).map((block) => block.trim()).filter(Boolean);
+  const htmlBlocks = blocks.map((block) => {
+    const lines = block.split('\n').map((line) => line.trim()).filter(Boolean);
+    if (!lines.length) return '';
+
+    const allBullets = lines.every((line) => /^[-*]\s+/.test(line));
+    if (allBullets) {
+      const items = lines
+        .map((line) => line.replace(/^[-*]\s+/, ''))
+        .map((line) => `<li>${formatInlineMarkdown(line)}</li>`)
+        .join('');
+      return `<ul>${items}</ul>`;
+    }
+
+    const allNumbered = lines.every((line) => /^\d+[.)]\s+/.test(line));
+    if (allNumbered) {
+      const items = lines
+        .map((line) => line.replace(/^\d+[.)]\s+/, ''))
+        .map((line) => `<li>${formatInlineMarkdown(line)}</li>`)
+        .join('');
+      return `<ol>${items}</ol>`;
+    }
+
+    return `<p>${lines.map((line) => formatInlineMarkdown(line)).join('<br>')}</p>`;
+  }).filter(Boolean);
+
+  return htmlBlocks.join('');
+}
+
+function appendMessageContent(container, text) {
+  const raw = String(text ?? '');
+  const blockPattern = /```([a-zA-Z0-9_+-]*)\n([\s\S]*?)```/g;
+  const inlinePattern = /``\s*([a-zA-Z0-9_+-]+)\s+([\s\S]*?)\s*``/g;
+  let lastIndex = 0;
+  let matchedAny = false;
+  let match;
+
+  while ((match = blockPattern.exec(raw)) !== null) {
+    matchedAny = true;
+    appendPlainBubble(container, raw.slice(lastIndex, match.index));
+
+    const lang = (match[1] || 'code').toLowerCase();
+    const codeText = match[2] || '';
+    container.appendChild(makeCodeCard(lang, codeText));
+    lastIndex = blockPattern.lastIndex;
+  }
+
+  if (!matchedAny) {
+    lastIndex = 0;
+    while ((match = inlinePattern.exec(raw)) !== null) {
+      matchedAny = true;
+      appendPlainBubble(container, raw.slice(lastIndex, match.index));
+      const lang = (match[1] || 'code').toLowerCase();
+      const codeText = match[2] || '';
+      container.appendChild(makeCodeCard(lang, codeText));
+      lastIndex = inlinePattern.lastIndex;
+    }
+  }
+
+  const trailing = raw.slice(lastIndex).trim();
+  if (!matchedAny) {
+    if (looksLikeCode(raw)) {
+      const idx = firstCodeStartIndex(raw);
+      if (idx > 0) {
+        appendPlainBubble(container, raw.slice(0, idx));
+        container.appendChild(makeCodeCard('code', raw.slice(idx).trim()));
+      } else {
+        container.appendChild(makeCodeCard('code', raw.trim()));
+      }
+      return;
+    }
+    appendPlainBubble(container, raw);
+    return;
+  }
+
+  appendPlainBubble(container, trailing);
+}
+
+function addMessage(who, text) {
+  const shouldAutoScroll = isChatNearBottom();
+  const div = document.createElement('div');
+  div.className = 'msg' + (who === 'You' ? ' from-user' : '');
+  const time = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  div.innerHTML = `<div class="who">${esc(who)}</div><div class="msg-body"></div><div class="ts">${time}</div>`;
+  appendMessageContent(div.querySelector('.msg-body'), text);
+  chatThread.appendChild(div);
+  if (shouldAutoScroll) chatThread.scrollTop = chatThread.scrollHeight;
+}
+
+chatThread.addEventListener('click', (event) => {
+  const button = event.target.closest('.copy-code-btn');
+  if (!button) return;
+  copyCodeFromButton(button);
+});
+
+async function sendChat(message, opts = {}) {
+  const source = opts.source || 'typed';
+  const modeCommand = detectVoiceModeCommand(message);
+  if (modeCommand) {
+    if (source !== 'voice') addMessage('You', message);
+    if (modeCommand === 'on') {
+      setVoiceLock(true, { source });
+    } else {
+      setVoiceLock(false, { source });
+    }
+    return;
+  }
+
+  addMessage('You', message);
+  try {
+    const res = await api('/api/chat/message', { method: 'POST', body: JSON.stringify({ message }) });
+    const replyText = res.reply || 'Future did not return a response.';
+    addMessage('Future', replyText);
+    await speakReplyIfVoiceMode(replyText);
+    setServiceLive('chat', true);
+  } catch (e) {
+    addMessage('Future', 'Future chat is unavailable right now. Verify backend and model configuration.');
+    setServiceLive('chat', false);
+  }
+}
+
+async function speakReplyIfVoiceMode(text) {
+  if (!voiceLockEnabled) return;
+  const trimmed = String(text || '').trim();
+  if (!trimmed) return;
+
+  try {
+    const res = await fetch(CONFIG.API_BASE + '/api/tts/elevenlabs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: trimmed }),
+    });
+    if (!res.ok) return;
+
+    const blob = await res.blob();
+    if (!blob || !blob.size) return;
+
+    if (activeTtsAudio) {
+      try { activeTtsAudio.pause(); } catch (_) {}
+      activeTtsAudio = null;
+    }
+    if (activeTtsObjectUrl) {
+      URL.revokeObjectURL(activeTtsObjectUrl);
+      activeTtsObjectUrl = '';
+    }
+
+    activeTtsObjectUrl = URL.createObjectURL(blob);
+    activeTtsAudio = new Audio(activeTtsObjectUrl);
+    await activeTtsAudio.play();
+  } catch (_) {
+    // Keep chat flow uninterrupted when browser audio or network playback fails.
+  }
+}
+
+chatForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const val = chatInput.value.trim();
+  if (!val) return;
+  chatInput.value = '';
+  sendChat(val);
+});
+
+if (chatMicLock) {
+  chatMicLock.addEventListener('click', () => {
+    setVoiceLock(!voiceLockEnabled);
+  });
+}
+
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('.calendar-range-btn');
+  if (!btn) return;
+  const range = btn.getAttribute('data-range') || 'today';
+  calendarRange = range;
+  refreshCalendar();
+});
+
+document.querySelectorAll('.nav-item').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.nav-item').forEach((b) => b.classList.remove('active'));
+    btn.classList.add('active');
+  });
+});
+
+const Settings = {
+  open() { document.getElementById('settings-overlay').classList.add('open'); },
+  close() { document.getElementById('settings-overlay').classList.remove('open'); },
+  save() {
+    const base = document.getElementById('settings-api-base').value.trim();
+    const poll = parseInt(document.getElementById('settings-poll-interval').value, 10);
+    if (base) CONFIG.API_BASE = base.replace(/\/$/, '');
+    if (poll && poll > 0) CONFIG.POLL_INTERVAL_MS = poll * 1000;
+    Settings.close();
+    refreshAll();
+  },
+};
+
+document.getElementById('settings-overlay').addEventListener('click', (e) => {
+  if (e.target.id === 'settings-overlay') Settings.close();
+});
+
+function panelFromTag(tagId) {
+  const tag = document.getElementById(tagId);
+  return tag ? tag.closest('.panel') : null;
+}
+
+function currentTagState(tagId) {
+  const tag = document.getElementById(tagId);
+  if (!tag) return 'UNKNOWN';
+  return (tag.textContent || 'UNKNOWN').trim().toUpperCase();
+}
+
+function createCompactItem(title, contentNode, tagId, openByDefault = false) {
+  if (!contentNode) return null;
+  const item = document.createElement('details');
+  item.className = 'compact-item';
+  if (openByDefault) item.open = true;
+
+  const summary = document.createElement('summary');
+  const label = document.createElement('span');
+  label.textContent = title;
+
+  summary.appendChild(label);
+
+  const content = document.createElement('div');
+  content.className = 'compact-content';
+  content.appendChild(contentNode);
+
+  item.appendChild(summary);
+  item.appendChild(content);
+  return item;
+}
+
+function initCompactDropdownLayout() {
+  if (document.getElementById('compact-accordions')) return;
+  const center = document.querySelector('.col-center');
+  const chatFormNode = document.getElementById('chat-form');
+  if (!center || !chatFormNode) return;
+
+  document.body.classList.add('compact-mode');
+
+  const container = document.createElement('section');
+  container.id = 'compact-accordions';
+  container.className = 'compact-accordions';
+
+  const modules = [
+    { title: 'Spotify', node: panelFromTag('spotify-tag'), tagId: 'spotify-tag', open: true },
+    { title: 'Calendar', node: panelFromTag('calendar-tag'), tagId: 'calendar-tag', open: false },
+    { title: 'Gmail', node: panelFromTag('gmail-tag'), tagId: 'gmail-tag', open: false },
+    { title: 'System Performance', node: panelFromTag('perf-tag'), tagId: 'perf-tag', open: false },
+    { title: 'Stocks', node: panelFromTag('stocks-tag'), tagId: 'stocks-tag', open: false },
+    { title: 'Fusion 360', node: panelFromTag('fusion-tag'), tagId: 'fusion-tag', open: false },
+    { title: 'Slicer', node: panelFromTag('slicer-tag'), tagId: 'slicer-tag', open: false },
+    { title: 'Recent Downloads', node: panelFromTag('files-tag'), tagId: 'files-tag', open: false },
+    { title: 'Maps', node: panelFromTag('maps-tag'), tagId: 'maps-tag', open: false },
+  ];
+
+  for (const moduleDef of modules) {
+    const item = createCompactItem(moduleDef.title, moduleDef.node, moduleDef.tagId, moduleDef.open);
+    if (item) container.appendChild(item);
+  }
+
+  chatFormNode.insertAdjacentElement('afterend', container);
+}
+
+function refreshAll() {
+  refreshSystemStats();
+  Spotify.refresh();
+  refreshStocks();
+  refreshCalendar();
+  refreshGmail();
+  refreshFusion();
+  refreshFiles();
+  refreshMaps();
+  refreshSlicer();
+}
+
+refreshAll();
+initCompactDropdownLayout();
+setInterval(refreshAll, CONFIG.POLL_INTERVAL_MS);
+</script>
+
+</body>
+</html>
+
+
+
