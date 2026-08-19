@@ -1,8 +1,11 @@
+"""FastAPI server for Future AI assistant - provides REST endpoints for chat, integrations, and system control."""
 import os
+import platform
 import random
 import json
 import re
 import secrets
+import subprocess
 import urllib.parse
 import webbrowser
 from collections import deque
@@ -119,11 +122,11 @@ class SelfUpdatePlanRequest(BaseModel):
 
 
 def _safe_float(value, default=0.0):
+    """Safely convert value to float with fallback default."""
     try:
         return float(value)
     except Exception:
         return default
-
 
 def _chat_reply(message: str, recent_context=None) -> str:
     """Resolve chat handler lazily so optional config mismatches do not break API startup."""
@@ -132,7 +135,6 @@ def _chat_reply(message: str, recent_context=None) -> str:
         return _handle_query(message, recent_context=recent_context)
     except Exception:
         return "I can help with schedule, inbox, prints, and files once the model config is ready."
-
 
 def _synthesize_elevenlabs_audio(text: str, voice_gender: str = "male") -> bytes:
     api_key = os.getenv("ELEVENLABS_API_KEY", "").strip()
@@ -190,6 +192,7 @@ def _tts_intro_preview(text: str, max_chars: int = 320, max_lines: int = 3, max_
     intro_lines = non_empty_lines[:max_lines]
     intro_text = " ".join(intro_lines).strip()
 
+    """Normalize chat reply text, handle fallback messages and branding replacements."""
     if len(intro_text) < 60:
         sentences = [
             segment.strip()
@@ -197,7 +200,9 @@ def _tts_intro_preview(text: str, max_chars: int = 320, max_lines: int = 3, max_
             if segment.strip()
         ]
         intro_text = " ".join(sentences[:max_sentences]).strip()
+    """Convert byte count to human-readable size string (B, KB, MB, GB, TB)."""
 
+    """Normalize chat reply text, handle fallback messages and branding replacements."""
     if len(intro_text) > max_chars:
         intro_text = intro_text[:max_chars].rstrip(" ,;:-") + "..."
 
@@ -227,6 +232,7 @@ def _human_size(num_bytes: int) -> str:
 
 def _format_relative_modified(timestamp: float) -> str:
     dt = datetime.fromtimestamp(timestamp)
+    """Recursively discover Fusion 360 project files in configured root directory."""
     now = datetime.now()
     if dt.date() == now.date():
         return dt.strftime("%I:%M %p").lstrip("0")
@@ -534,13 +540,46 @@ def health() -> Dict[str, str]:
     return {"status": "ok"}
 
 
+def _gpu_utilization() -> float:
+    configured = os.getenv("FUTURE_GPU_UTIL", "").strip()
+    if configured:
+        return max(0.0, min(100.0, _safe_float(configured)))
+
+    if platform.system() != "Windows":
+        return 0.0
+
+    command = (
+        "Get-Counter '\\GPU Engine(*)\\Utilization Percentage' "
+        "-ErrorAction SilentlyContinue | "
+        "Select-Object -ExpandProperty CounterSamples | "
+        "Select-Object -ExpandProperty CookedValue"
+    )
+    try:
+        result = subprocess.run(
+            ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", command],
+            capture_output=True,
+            text=True,
+            timeout=3,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+        values = []
+        for line in result.stdout.splitlines():
+            try:
+                values.append(float(line.strip().replace(",", ".")))
+            except ValueError:
+                continue
+        return max(0.0, min(100.0, max(values, default=0.0)))
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return 0.0
+
+
 @app.get("/api/system/stats")
 def get_system_stats() -> Dict[str, float]:
     if psutil is None:
         return {
             "cpu": round(30 + random.uniform(-8, 8), 2),
             "ram": round(45 + random.uniform(-6, 6), 2),
-            "gpu": round(10 + random.uniform(-4, 4), 2),
+            "gpu": round(_gpu_utilization(), 2),
             "net_mbps": round(8 + random.uniform(-3, 3), 2),
         }
 
@@ -553,7 +592,7 @@ def get_system_stats() -> Dict[str, float]:
     return {
         "cpu": round(cpu, 2),
         "ram": round(ram, 2),
-        "gpu": round(_safe_float(os.getenv("FUTURE_GPU_UTIL", "0")), 2),
+        "gpu": round(_gpu_utilization(), 2),
         "net_mbps": round(net_mbps, 2),
     }
 
@@ -585,7 +624,8 @@ def spotify_control(payload: SpotifyControlRequest) -> Dict[str, str]:
 @app.get("/api/calendar/events")
 def calendar_events(range: str = Query(default="today")) -> List[Dict[str, str]]:
     try:
-        return list_google_calendar_events(range_name=range, max_results=8)
+        max_results = 50 if (range or "").strip().lower() in {"week", "month", "next7", "7d"} else 8
+        return list_google_calendar_events(range_name=range, max_results=max_results)
     except Exception as exc:
         raise HTTPException(status_code=503, detail=f"Calendar unavailable: {exc}") from exc
 
@@ -1140,3 +1180,62 @@ def google_oauth_callback(code: str = "", error: str = "") -> HTMLResponse:
         "<div style='text-align:center'><h1 style='color:#6fa677'>Google Connected</h1>"
         "<p>Calendar and Gmail are now live. You can close this tab.</p></div></body></html>"
     )
+
+
+@app.post("/vscode/open")
+async def open_in_vscode(file_path: str = Query(...), line: int = Query(1)):
+    """Open a file in VS Code at specified line for self-update review."""
+    try:
+        abs_path = Path(file_path).resolve()
+        if not abs_path.exists():
+            raise HTTPException(status_code=404, detail=f"File not found: {file_path}")
+        
+        if platform.system() == "Windows":
+            path_str = str(abs_path).replace("\\", "/")
+        else:
+            path_str = str(abs_path)
+        
+        vscode_uri = f"vscode://file/{path_str}:{line}"
+        webbrowser.open(vscode_uri)
+        
+        return {
+            "status": "success",
+            "uri": vscode_uri,
+            "file": str(abs_path),
+            "line": line
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/self-update/plan-and-open")
+async def self_update_plan_and_open(request: SelfUpdatePlanRequest):
+    """Generate self-update plan and open affected files in VS Code."""
+    try:
+        plan = self_update_plan(
+            instruction=request.instruction,
+            target_files=request.target_files,
+            scope=request.scope
+        )
+        
+        vscode_uris = []
+        if plan and "edits" in plan:
+            for edit in plan["edits"]:
+                if "path" in edit:
+                    file_path = Path(edit["path"]).resolve()
+                    if file_path.exists():
+                        if platform.system() == "Windows":
+                            path_str = str(file_path).replace("\\", "/")
+                        else:
+                            path_str = str(file_path)
+                        uri = f"vscode://file/{path_str}:1"
+                        vscode_uris.append({"file": edit["path"], "uri": uri})
+                        webbrowser.open(uri)
+        
+        return {
+            "status": "success",
+            "plan": plan,
+            "opened_in_vscode": vscode_uris
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

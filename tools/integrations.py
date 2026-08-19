@@ -1110,6 +1110,12 @@ def list_google_calendar_events(range_name="today", max_results=8, calendar_id="
     elif range_name in {"week", "next7", "7d"}:
         start = now
         end = now + datetime.timedelta(days=7)
+    elif range_name in {"month", "this month", "current month"}:
+        start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        if start.month == 12:
+            end = start.replace(year=start.year + 1, month=1)
+        else:
+            end = start.replace(month=start.month + 1)
     else:
         start = now.replace(hour=0, minute=0, second=0, microsecond=0)
         end = start + datetime.timedelta(days=1)
@@ -1145,16 +1151,24 @@ def list_google_calendar_events(range_name="today", max_results=8, calendar_id="
         start_info = item.get("start", {})
         start_raw = start_info.get("dateTime") or start_info.get("date")
         display_time = "All day"
+        display_date = ""
         if start_raw:
             try:
-                start_dt = datetime.datetime.fromisoformat(start_raw.replace("Z", "+00:00"))
-                display_time = start_dt.astimezone().strftime("%I:%M %p").lstrip("0")
+                if "T" in str(start_raw):
+                    start_dt = datetime.datetime.fromisoformat(start_raw.replace("Z", "+00:00"))
+                    local_dt = start_dt.astimezone()
+                    display_time = local_dt.strftime("%I:%M %p").lstrip("0")
+                    display_date = local_dt.date().isoformat()
+                else:
+                    display_date = str(start_raw)
             except Exception:
                 display_time = str(start_raw)
+                display_date = str(start_raw)[:10]
 
         events.append(
             {
                 "time": display_time,
+                "date": display_date,
                 "title": item.get("summary") or "(untitled event)",
                 "subtitle": item.get("location") or item.get("description") or "",
             }
@@ -1242,6 +1256,8 @@ def _calendar_range_from_command(command_lower):
     command_lower = command_lower.replace("tmr", "tomorrow")
     if "tomorrow" in command_lower:
         return "tomorrow"
+    if any(token in command_lower for token in ["this month", "next month", "month"]):
+        return "month"
     if any(token in command_lower for token in ["next week", "this week", "next 7", "next seven", "upcoming"]):
         return "week"
     return "today"
@@ -1288,6 +1304,8 @@ def _is_calendar_lookup_intent(command_lower):
         "list events",
         "show events",
         "upcoming events",
+        "this month",
+        "next month",
         "am i busy",
     ]
     return any(phrase in command_lower for phrase in lookup_phrases)
@@ -1298,6 +1316,7 @@ def _format_calendar_list_reply(events, range_name):
         "today": "today",
         "tomorrow": "tomorrow",
         "week": "this week",
+        "month": "this month",
     }.get(range_name, "today")
 
     if not events:

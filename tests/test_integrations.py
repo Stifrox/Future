@@ -74,6 +74,45 @@ def test_load_environment_file_populates_google_calendar_credentials(tmp_path, m
     assert os.environ["GOOGLE_CALENDAR_CLIENT_SECRET"] == "dotenv-secret"
 
 
+def test_list_google_calendar_events_supports_month_range(monkeypatch):
+    captured = {}
+
+    class FixedDateTime(integrations.datetime.datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return cls(2026, 8, 16, 12, 0, 0, tzinfo=tz)
+
+    class DummyResponse:
+        status_code = 200
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {
+                "items": [
+                    {"summary": "Planning", "start": {"dateTime": "2026-08-16T09:00:00Z"}},
+                ]
+            }
+
+    def fake_get(url, headers=None, params=None, timeout=None):
+        captured["url"] = url
+        captured["params"] = params
+        return DummyResponse()
+
+    monkeypatch.setattr(integrations.datetime, "datetime", FixedDateTime)
+    monkeypatch.setattr(integrations, "GOOGLE_CALENDAR_ACCESS_TOKEN", "access")
+    monkeypatch.setattr(integrations, "GOOGLE_CALENDAR_REFRESH_TOKEN", None)
+    monkeypatch.setattr(integrations.requests, "get", fake_get)
+
+    events = integrations.list_google_calendar_events(range_name="month", max_results=50)
+
+    assert captured["params"]["timeMin"].startswith("2026-08-01")
+    assert captured["params"]["timeMax"].startswith("2026-09-01")
+    assert events[0]["date"] == "2026-08-16"
+    assert events[0]["time"] == "9:00 AM"
+
+
 def test_validate_spotify_credentials_uses_client_credentials(monkeypatch):
     class DummyResponse:
         def __init__(self):

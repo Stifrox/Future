@@ -255,6 +255,77 @@ def test_handle_query_execute_requires_verification_then_executes(monkeypatch):
     assert "executed successfully" in second.lower()
 
 
+def test_handle_query_routes_okay_run_it_to_execute(monkeypatch):
+    monkeypatch.setattr(webtools, "_client", None)
+    monkeypatch.setattr(
+        webtools,
+        "self_update_execute_latest",
+        lambda: {"status": "ok", "applied": [{"path": "webtools.py", "operation": "insert_line"}]},
+    )
+
+    reply = webtools.handle_query("okay run it")
+
+    assert "executed successfully" in reply.lower()
+
+
+def test_handle_query_runs_basic_code_rerun(monkeypatch, tmp_path):
+    monkeypatch.setattr(webtools, "_client", None)
+    monkeypatch.setattr(webtools, "_workspace_root", lambda: tmp_path)
+
+    for name in ["main.py", "webtools.py", "api_server.py", "tools/integrations.py"]:
+        file_path = tmp_path / name
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        file_path.write_text("print('ok')\n", encoding="utf-8")
+
+    reply = webtools.handle_query("run a basic code rerun")
+
+    assert "basic code rerun passed" in reply.lower()
+
+
+def test_handle_query_explains_code_update_blocker(monkeypatch):
+    monkeypatch.setattr(webtools, "_client", None)
+
+    reply = webtools.handle_query("what exactly is preventing your ability to do code updates")
+
+    assert "wrapper" in reply.lower() or "tool path" in reply.lower()
+
+
+def test_handle_query_routes_plain_update_to_wrapper(monkeypatch):
+    monkeypatch.setattr(webtools, "_client", None)
+
+    reply = webtools.handle_query("update")
+
+    assert "tell me what to update" in reply.lower()
+
+
+def test_handle_query_auto_executes_small_edit_update(monkeypatch):
+    monkeypatch.setattr(webtools, "_client", None)
+    monkeypatch.setattr(
+        webtools,
+        "self_update_plan",
+        lambda instruction, target_files=None, scope="auto": {
+            "status": "ok",
+            "scope": "small_edit",
+            "model": "claude-sonnet-4-5",
+            "plan": {"summary": "Add missing logging", "risk_level": "low"},
+        },
+    )
+    monkeypatch.setattr(
+        webtools,
+        "self_update_execute_latest",
+        lambda: {
+            "status": "ok",
+            "applied": [{"path": "webtools.py", "operation": "insert_line"}],
+            "skipped": [],
+        },
+    )
+
+    reply = webtools.handle_query("update my code")
+
+    assert "executed successfully" in reply.lower()
+    assert "plan ready" not in reply.lower()
+
+
 def test_self_update_uses_default_target_files_when_none_present(monkeypatch):
     monkeypatch.setattr(webtools, "_client", None)
 

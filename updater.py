@@ -235,23 +235,23 @@ def _execute_edits(plan_payload: Dict[str, object]) -> Dict[str, object]:
         return {"status": "error", "error": "No executable edits found in latest plan."}
 
     applied = []
+    skipped = []
     for item in edits:
         if not isinstance(item, dict):
-            return {"status": "error", "error": "Invalid edit item format in plan."}
+            skipped.append({"reason": "Invalid edit item format in plan."})
+            continue
 
         path_text = str(item.get("path", "")).strip()
         action = str(item.get("action", "")).strip().lower()
         change = item.get("change")
         if not path_text:
-            return {"status": "error", "error": "Edit is missing target path."}
+            skipped.append({"path": "", "reason": "Edit is missing target path."})
+            continue
 
         target = _safe_workspace_file(path_text)
         if not target.exists() and action != "append":
-            return {
-                "status": "error",
-                "error": f"Target file does not exist: {target}",
-                "missing_path": str(target),
-            }
+            skipped.append({"path": str(target), "reason": "Target file does not exist."})
+            continue
 
         if isinstance(change, dict):
             change_type = str(change.get("type", "")).strip().lower()
@@ -277,15 +277,25 @@ def _execute_edits(plan_payload: Dict[str, object]) -> Dict[str, object]:
                 continue
 
         # Non-structured change payloads are not safely executable.
+        skipped.append({"path": str(target), "reason": "Non-executable edit instructions."})
+
+    if applied:
+        result = {"status": "ok", "applied": applied}
+        if skipped:
+            result["skipped"] = skipped
+        return result
+
+    if skipped:
         return {
             "status": "error",
             "error": (
-                "Latest plan contains non-executable edit instructions. "
-                "Re-run planning and ask for structured edits using change.type insert_line/replace_text/append_text."
+                "No executable edits could be applied. "
+                "Ask for structured edits using change.type insert_line/replace_text/append_text and only existing files."
             ),
+            "skipped": skipped,
         }
 
-    return {"status": "ok", "applied": applied}
+    return {"status": "error", "error": "No executable edits could be applied."}
 
 
 def self_update_plan(instruction: str, target_files: Optional[List[str]] = None, scope: str = "auto") -> Dict[str, object]:
@@ -392,24 +402,6 @@ def self_update_execute_latest() -> Dict[str, object]:
         }
 
     result = _execute_edits(payload)
-
-    # Auto-replan once when execution fails.
-    if result.get("status") != "ok":
-        instruction = str(payload.get("instruction", "")).strip()
-        scope = str(payload.get("scope", "small_edit")).strip() or "small_edit"
-        target_files = payload.get("target_files", [])
-        if not isinstance(target_files, list):
-            target_files = []
-
-        if instruction and target_files:
-            retry_instruction = (
-                instruction
-                + " Use only these target files exactly. Do not reference any new files. "
-                + "Prefer change.type insert_line or append_text. Avoid replace_text unless exact old_text is present in file context."
-            )
-            replanned = self_update_plan(retry_instruction, target_files=target_files, scope=scope)
-            if replanned.get("status") == "ok":
-                result = _execute_edits(replanned)
     timestamp = datetime.now(timezone.utc).isoformat()
     _write_log(
         {

@@ -535,6 +535,7 @@
     display:flex;
     gap:8px;
     margin-bottom:10px;
+    flex-wrap:wrap;
   }
   .calendar-range-btn{
     border:1px solid var(--border-bright);
@@ -551,6 +552,110 @@
     border-color:var(--steel-dim);
     background:var(--steel-soft);
     color:var(--steel);
+  }
+  .calendar-bubble-view{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+  }
+  .calendar-range-summary{
+    font-size:11px;
+    color:var(--text-3);
+    letter-spacing:0.4px;
+  }
+  .calendar-day-stack{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+  }
+  .calendar-day-card{
+    padding:10px 11px;
+    border:1px solid var(--border);
+    border-radius:var(--radius-m);
+    background:linear-gradient(180deg, rgba(27,30,33,0.96), rgba(14,15,17,0.96));
+  }
+  .calendar-day-card.today{
+    border-color:var(--steel-dim);
+    box-shadow:inset 0 0 0 1px rgba(138,172,196,0.08);
+  }
+  .calendar-day-top{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    margin-bottom:8px;
+  }
+  .calendar-day-chip{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    padding:4px 10px;
+    border-radius:999px;
+    background:var(--steel-soft);
+    border:1px solid var(--steel-dim);
+    color:var(--steel);
+    font-family:var(--font-label);
+    font-size:10px;
+    letter-spacing:0.9px;
+    text-transform:uppercase;
+    white-space:nowrap;
+  }
+  .calendar-day-chip .calendar-day-number{
+    font-family:var(--font-mono);
+    font-size:11px;
+    letter-spacing:0;
+  }
+  .calendar-day-meta{
+    font-family:var(--font-mono);
+    font-size:10px;
+    color:var(--text-3);
+    letter-spacing:0.4px;
+    text-transform:uppercase;
+    white-space:nowrap;
+  }
+  .calendar-day-events{
+    display:flex;
+    flex-direction:column;
+    gap:7px;
+  }
+  .calendar-event-pill{
+    padding:8px 10px;
+    border-radius:999px;
+    border:1px solid var(--border-bright);
+    background:var(--bg-inset);
+    display:flex;
+    align-items:flex-start;
+    gap:8px;
+  }
+  .calendar-event-time{
+    flex-shrink:0;
+    font-family:var(--font-mono);
+    font-size:10px;
+    color:var(--amber);
+    letter-spacing:0.4px;
+    text-transform:uppercase;
+    padding-top:1px;
+  }
+  .calendar-event-main{
+    min-width:0;
+    display:flex;
+    flex-direction:column;
+    gap:1px;
+  }
+  .calendar-event-title{
+    font-size:12px;
+    font-weight:600;
+    color:var(--text-1);
+    line-height:1.2;
+  }
+  .calendar-event-sub{
+    font-size:10px;
+    color:var(--text-3);
+    line-height:1.2;
+  }
+  .calendar-empty-day{
+    font-size:11px;
+    color:var(--text-3);
   }
 
   /* ---------- GAUGES ---------- */
@@ -977,6 +1082,7 @@
             <button class="calendar-range-btn active" type="button" data-range="today">Today</button>
             <button class="calendar-range-btn" type="button" data-range="tomorrow">Tomorrow</button>
             <button class="calendar-range-btn" type="button" data-range="week">Week</button>
+            <button class="calendar-range-btn" type="button" data-range="month">Month</button>
           </div>
           <div class="list-row"><div class="row-time">10:30</div><div class="row-main"><div class="row-title">Project briefing</div><div class="row-sub">Conf room B - 12 attendees</div></div></div>
           <div class="list-row"><div class="row-time">12:00</div><div class="row-main"><div class="row-title">Lunch - Alex</div><div class="row-sub">Home</div></div></div>
@@ -1462,19 +1568,91 @@ let calendarRange = 'today';
 function calendarRangeLabel(range) {
   if (range === 'tomorrow') return 'Tomorrow';
   if (range === 'week') return 'This Week';
+  if (range === 'month') return 'This Month';
   return 'Today';
 }
 
-function renderCalendarRows(events) {
-  const controls = `<div class="calendar-range" id="calendar-range-controls">
+function calendarRangeControlsMarkup() {
+  return `<div class="calendar-range" id="calendar-range-controls">
     <button class="calendar-range-btn ${calendarRange === 'today' ? 'active' : ''}" type="button" data-range="today">Today</button>
     <button class="calendar-range-btn ${calendarRange === 'tomorrow' ? 'active' : ''}" type="button" data-range="tomorrow">Tomorrow</button>
     <button class="calendar-range-btn ${calendarRange === 'week' ? 'active' : ''}" type="button" data-range="week">Week</button>
+    <button class="calendar-range-btn ${calendarRange === 'month' ? 'active' : ''}" type="button" data-range="month">Month</button>
   </div>`;
+}
+
+function localDateKey(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function shiftLocalDate(date, days) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days, 12, 0, 0, 0);
+}
+
+function getRangeDates(range) {
+  const today = new Date();
+  const safeToday = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12, 0, 0, 0);
+  if (range === 'month') {
+    const start = new Date(safeToday.getFullYear(), safeToday.getMonth(), 1, 12, 0, 0, 0);
+    const end = new Date(safeToday.getFullYear(), safeToday.getMonth() + 1, 0, 12, 0, 0, 0);
+    const days = [];
+    for (let cursor = start; cursor <= end; cursor = shiftLocalDate(cursor, 1)) days.push(new Date(cursor));
+    return days;
+  }
+  if (range === 'week') {
+    return Array.from({ length: 7 }, (_, index) => shiftLocalDate(safeToday, index));
+  }
+  return [safeToday];
+}
+
+function formatCalendarDayLabel(date) {
+  const weekday = date.toLocaleDateString('en-US', { weekday: 'short' });
+  const month = date.toLocaleDateString('en-US', { month: 'short' });
+  const day = date.toLocaleDateString('en-US', { day: 'numeric' });
+  return { weekday, month, day };
+}
+
+function renderCalendarEventPill(event) {
+  return `<div class="calendar-event-pill"><div class="calendar-event-time">${esc(event.time || 'All day')}</div><div class="calendar-event-main"><div class="calendar-event-title">${esc(event.title || '(untitled event)')}</div>${event.subtitle ? `<div class="calendar-event-sub">${esc(event.subtitle)}</div>` : ''}</div></div>`;
+}
+
+function renderCalendarBubbleRange(events, range) {
+  const grouped = new Map();
+  for (const event of events) {
+    const key = event.date || '';
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key).push(event);
+  }
+
+  const days = getRangeDates(range);
+  const todayKey = localDateKey(new Date());
+  const summary = range === 'week'
+    ? 'Next seven days at a glance.'
+    : 'This month broken into day bubbles.';
+
+  const cards = days.map((date) => {
+    const key = localDateKey(date);
+    const dayEvents = grouped.get(key) || [];
+    const label = formatCalendarDayLabel(date);
+    const isToday = key === todayKey;
+    return `<div class="calendar-day-card ${isToday ? 'today' : ''}"><div class="calendar-day-top"><div class="calendar-day-chip">${esc(label.weekday)} <span class="calendar-day-number">${esc(label.day)}</span></div><div class="calendar-day-meta">${esc(label.month)}</div></div><div class="calendar-day-events">${dayEvents.length ? dayEvents.map(renderCalendarEventPill).join('') : '<div class="calendar-empty-day">No events yet.</div>'}</div></div>`;
+  }).join('');
+
+  return `<div class="calendar-bubble-view"><div class="calendar-range-summary">${esc(summary)}</div><div class="calendar-day-stack">${cards}</div></div>`;
+}
+
+function renderCalendarRows(events) {
+  const controls = calendarRangeControlsMarkup();
+  if (calendarRange === 'week' || calendarRange === 'month') {
+    return controls + renderCalendarBubbleRange(events, calendarRange);
+  }
   const rows = events.map((e) =>
     `<div class="list-row"><div class="row-time">${esc(e.time)}</div><div class="row-main"><div class="row-title">${esc(e.title)}</div><div class="row-sub">${esc(e.subtitle || '')}</div></div></div>`
   ).join('');
-  const emptyLabel = calendarRange === 'week' ? 'No events found for this week.' : `No upcoming events ${calendarRange === 'tomorrow' ? 'tomorrow' : 'today'}.`;
+  const emptyLabel = calendarRange === 'tomorrow' ? 'No upcoming events tomorrow.' : 'No upcoming events today.';
   return controls + (rows || `<div class="row-sub">${emptyLabel}</div>`);
 }
 
@@ -1486,12 +1664,7 @@ async function refreshCalendar() {
     if (title) title.textContent = calendarRangeLabel(calendarRange);
     setServiceLive('calendar', true);
   } catch (e) {
-    const controls = `<div class="calendar-range" id="calendar-range-controls">
-      <button class="calendar-range-btn ${calendarRange === 'today' ? 'active' : ''}" type="button" data-range="today">Today</button>
-      <button class="calendar-range-btn ${calendarRange === 'tomorrow' ? 'active' : ''}" type="button" data-range="tomorrow">Tomorrow</button>
-      <button class="calendar-range-btn ${calendarRange === 'week' ? 'active' : ''}" type="button" data-range="week">Week</button>
-    </div>`;
-    document.getElementById('calendar-list').innerHTML = controls + '<div class="row-sub">Calendar unavailable. Reconnect Google to load events.</div>';
+    document.getElementById('calendar-list').innerHTML = calendarRangeControlsMarkup() + '<div class="row-sub">Calendar unavailable. Reconnect Google to load events.</div>';
     setServiceLive('calendar', false);
   }
 }

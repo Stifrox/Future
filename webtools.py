@@ -1,8 +1,10 @@
+"""Web tools module for Future AI assistant - handles file operations, code generation, and system integrations."""
 import os
 import re
 import subprocess
 import json
 import webbrowser
+import sys
 import urllib.parse
 import secrets
 import time
@@ -10,6 +12,7 @@ from pathlib import Path
 from typing import Optional
 
 import requests
+import platform
 
 try:
     from openai import OpenAI
@@ -33,6 +36,7 @@ try:
     import config
 except Exception:
     config = None
+    """Retrieve environment variable with optional default value, stripping whitespace."""
 
 
 def _env(name: str, default: str = "") -> str:
@@ -63,8 +67,8 @@ _FUSION_EXECUTABLE_CANDIDATES = [
 ]
 _PENDING_SELF_UPDATE_VERIFICATION = None
 
-
 def _discover_fusion_in_webdeploy() -> Optional[str]:
+    """Discover Fusion 360 installation in webdeploy directory, returns most recent executable path."""
     configured_root = _env("FUSION360_WEBDEPLOY_ROOT")
     if configured_root:
         roots = [Path(configured_root).expanduser()]
@@ -156,7 +160,6 @@ def _clean_model_text(text: str) -> str:
     cleaned = re.sub(r"\s{2,}", " ", cleaned)
     return cleaned.strip()
 
-
 def _workspace_root() -> Path:
     configured = _env("FUTURE_FILES_ROOT")
     if configured:
@@ -165,6 +168,7 @@ def _workspace_root() -> Path:
 
 
 def _safe_target_file(path_text: str) -> Path:
+    """Convert arbitrary text to safe filesystem name by replacing invalid characters."""
     root = _workspace_root()
     candidate = (root / path_text.strip().lstrip("/")).resolve()
     if root not in candidate.parents and candidate != root:
@@ -470,6 +474,8 @@ def _looks_like_fusion_intent(query_lower: str) -> bool:
 
 
 def _looks_like_self_update_intent(query_lower: str) -> bool:
+    if re.match(r"^update(?:\s+(?:my|your|the)\s+(?:code|assistant|app|project|config|feature|features)|\s+code|\s+my\s+code|\s+your\s+code|\s+the\s+code)?$", query_lower):
+        return True
     return any(
         phrase in query_lower
         for phrase in [
@@ -478,6 +484,22 @@ def _looks_like_self_update_intent(query_lower: str) -> bool:
             "update yourself",
             "run updater",
             "update plan",
+            "edit my code",
+            "edit your code",
+            "modify my code",
+            "change my code",
+            "fix my code",
+            "code edits",
+            "code updates",
+            "code update",
+            "code changes",
+            "apply changes",
+            "make changes",
+            "use vscode",
+            "use vs code",
+            "vs code interface",
+            "vscode interface",
+            "wrapper",
         ]
     )
 
@@ -490,8 +512,39 @@ def _looks_like_self_update_execute_intent(query_lower: str) -> bool:
         "execute update",
         "apply update",
         "finish the update",
+        "execute it",
+        "apply it",
+        "run it",
     ]
     return any(marker in query_lower for marker in execute_markers)
+
+
+def _looks_like_self_update_direct_confirm(query_lower: str) -> bool:
+    confirm_markers = [
+        "okay run it",
+        "ok run it",
+        "go ahead",
+        "do it",
+        "proceed",
+        "carry on",
+        "run it",
+    ]
+    return any(marker in query_lower for marker in confirm_markers)
+
+
+def _looks_like_basic_code_rerun_intent(query_lower: str) -> bool:
+    markers = [
+        "basic code rerun",
+        "code rerun",
+        "rerun the code",
+        "re-run the code",
+        "rerun code",
+        "re-run code",
+        "smoke test",
+        "basic smoke test",
+        "code check",
+    ]
+    return any(marker in query_lower for marker in markers)
 
 
 def _looks_like_self_update_verification_intent(query_lower: str) -> bool:
@@ -595,6 +648,27 @@ def _self_update_reply(query: str) -> str:
     model = str(result.get("model", "")).strip() or "configured model"
     resolved_scope = str(result.get("scope", scope)).strip()
 
+    if resolved_scope == "small_edit":
+        execute_result = self_update_execute_latest()
+        if execute_result.get("status") == "ok":
+            applied = execute_result.get("applied", [])
+            if not isinstance(applied, list):
+                applied = []
+            skipped = execute_result.get("skipped", [])
+            skipped_count = len(skipped) if isinstance(skipped, list) else 0
+            touched = ", ".join(str(item.get("path", "")) for item in applied[:5] if isinstance(item, dict) and item.get("path"))
+            base = f"Self-update executed successfully ({resolved_scope}, {model})."
+            if touched:
+                base += f" Applied {len(applied)} edit(s): {touched}."
+            if skipped_count:
+                base += f" Skipped {skipped_count} non-executable edit(s)."
+            return base
+
+        return (
+            f"Self-update plan created ({resolved_scope}, {model}) but execution failed: "
+            f"{execute_result.get('error', 'unknown error')}"
+        )
+
     return (
         f"Self-update plan ready ({resolved_scope}, {model}). "
         f"Summary: {summary} Risk: {risk}. "
@@ -605,15 +679,77 @@ def _self_update_reply(query: str) -> str:
 def _self_update_execute_reply() -> str:
     result = self_update_execute_latest()
     if result.get("status") != "ok":
-        return f"Self-update execute failed: {result.get('error', 'unknown error')}"
+        skipped = result.get("skipped", [])
+        skipped_count = len(skipped) if isinstance(skipped, list) else 0
+        suffix = f" Skipped {skipped_count} non-executable edit(s)." if skipped_count else ""
+        return f"Self-update execute failed: {result.get('error', 'unknown error')}.{suffix}"
 
     applied = result.get("applied", [])
     if not isinstance(applied, list):
         applied = []
+    skipped = result.get("skipped", [])
+    skipped_count = len(skipped) if isinstance(skipped, list) else 0
     touched = ", ".join(str(item.get("path", "")) for item in applied[:5] if isinstance(item, dict) and item.get("path"))
     if touched:
-        return f"Self-update executed successfully. Applied {len(applied)} edit(s): {touched}."
-    return "Self-update executed successfully."
+        suffix = f" Skipped {skipped_count} non-executable edit(s)." if skipped_count else ""
+        return f"Self-update executed successfully. Applied {len(applied)} edit(s): {touched}.{suffix}"
+    suffix = f" Skipped {skipped_count} non-executable edit(s)." if skipped_count else ""
+    return f"Self-update executed successfully.{suffix}"
+
+
+def _basic_code_rerun_reply() -> str:
+    files = ["main.py", "webtools.py", "api_server.py", "tools/integrations.py"]
+    root = _workspace_root()
+    missing = [name for name in files if not (root / name).exists()]
+    if missing:
+        return f"Basic code rerun could not start because these files are missing: {', '.join(missing)}."
+
+    cmd = [sys.executable, "-m", "py_compile", *files]
+    try:
+        result = subprocess.run(cmd, cwd=str(root), capture_output=True, text=True, timeout=60)
+    except Exception as exc:
+        return f"Basic code rerun failed to start: {exc}"
+
+    if result.returncode == 0:
+        return "Basic code rerun passed. Python syntax compiled cleanly for the core app files."
+
+    stderr = (result.stderr or result.stdout or "").strip()
+    if len(stderr) > 700:
+        stderr = stderr[:700]
+    return f"Basic code rerun failed. {stderr or 'Python compilation returned a non-zero exit code.'}"
+
+
+def _self_update_wrapper_reply(query: str) -> str:
+    query_lower = query.lower()
+    if query_lower.strip() == "update":
+        return (
+            "Tell me what to update: code/features, a specific file, or say 'execute the update' if a small_edit plan is already saved."
+        )
+
+    if any(phrase in query_lower for phrase in ["what exactly is preventing", "why can't you", "why cant you", "what is preventing", "blocked by", "limiting your ability"]):
+        return (
+            "The blocker is usually the local tool path, not a different LLM. "
+            "When a request doesn't match the self-update router, it falls back to normal chat and the model explains its own limitations. "
+            "Use the self-update wrapper or ask for an explicit code update, and I can plan it or execute a saved small_edit."
+        )
+
+    if any(phrase in query_lower for phrase in ["vscode interface", "vs code interface", "wrapper", "wrapper like that", "use vscode", "use vs code"]):
+        vscode_files = ["webtools.py", "updater.py", "api_server.py"]
+        links = []
+        root = _workspace_root()
+        for name in vscode_files:
+            target = root / name
+            if target.exists():
+                links.append(_generate_vscode_uri(str(target), 1))
+        link_text = "\n".join(f"- {link}" for link in links) if links else "- no openable files found"
+        return (
+            "Yes. The wrapper should live above the LLM: it should catch code-update intent, generate a structured plan, and route execution locally. "
+            "Open these files in VS Code to inspect the current wrapper path:\n"
+            f"{link_text}\n"
+            "If you want, I can wire a stricter VS Code-first update wrapper next so code-edit requests never fall through to normal chat."
+        )
+
+    return _self_update_reply(query)
 
 
 def _looks_like_rewrite_planning_intent(query_lower: str) -> bool:
@@ -893,6 +1029,12 @@ def _handle_local_intents(query: str) -> Optional[str]:
         except Exception as exc:
             return f"Self-update verification failed: {exc}"
 
+    if _looks_like_self_update_direct_confirm(q):
+        try:
+            return _self_update_execute_reply()
+        except Exception as exc:
+            return f"Self-update execute failed: {exc}"
+
     if _looks_like_self_update_execute_intent(q):
         try:
             if _self_update_requires_verification():
@@ -901,9 +1043,15 @@ def _handle_local_intents(query: str) -> Optional[str]:
         except Exception as exc:
             return f"Self-update execute failed: {exc}"
 
+    if _looks_like_basic_code_rerun_intent(q):
+        try:
+            return _basic_code_rerun_reply()
+        except Exception as exc:
+            return f"Basic code rerun failed: {exc}"
+
     if _looks_like_self_update_intent(q):
         try:
-            return _self_update_reply(query)
+            return _self_update_wrapper_reply(query)
         except Exception as exc:
             return f"Self-update command failed: {exc}"
 
