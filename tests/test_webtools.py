@@ -70,6 +70,24 @@ def test_handle_query_recalls_project_name_from_saved_memory(monkeypatch):
     assert reply == "Your drone project is project blackbird."
 
 
+def test_handle_query_memory_check_returns_deterministic_snapshot(monkeypatch):
+    monkeypatch.setattr(
+        webtools,
+        "load_memory",
+        lambda: [
+            {"user": "my drone project is called project blackbird", "ai": "Noted."},
+            {"user": "remember that my favorite color is blue", "ai": "I'll remember that your favorite color is blue."},
+        ],
+    )
+    monkeypatch.setattr(webtools, "_client", None)
+
+    reply = webtools.handle_query("check your memory and tell me if you see new stuff")
+
+    assert "stored memory entries" in reply.lower()
+    assert "most recent memory snippets" in reply.lower()
+    assert "project blackbird" in reply.lower()
+
+
 def test_handle_query_handles_printer_and_spotify_in_same_prompt(monkeypatch):
     monkeypatch.setattr(webtools, "_client", None)
     monkeypatch.setattr(webtools, "_handle_memory_intents", lambda query: None)

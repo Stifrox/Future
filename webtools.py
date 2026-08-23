@@ -35,6 +35,7 @@ from tools.memory import extract_facts, load_memory, recall_fact, remember, save
 try:
     import config
 except Exception:
+    """Retrieve environment variable with optional default value, stripping whitespace."""
     config = None
     """Retrieve environment variable with optional default value, stripping whitespace."""
 
@@ -1124,6 +1125,43 @@ def _format_fact_response(fact) -> str:
 def _handle_memory_intents(query: str) -> Optional[str]:
     memory = load_memory()
     lowered = query.lower().strip()
+
+    # Prefer a deterministic status summary when the user explicitly asks to
+    # check memory, so we avoid generic model-generated answers.
+    snapshot_markers = [
+        "check your memory",
+        "check my memory",
+        "memory check",
+        "what is in your memory",
+        "what's in your memory",
+        "whats in your memory",
+        "show your memory",
+        "show me your memory",
+        "did you get my memory",
+        "new stuff",
+    ]
+    if "memory" in lowered and any(marker in lowered for marker in snapshot_markers):
+        facts = extract_facts(memory)
+        recent_items = [item for item in memory if str(item.get("user", "")).strip() or str(item.get("ai", "")).strip()][-3:]
+
+        lines = [
+            f"I can see {len(memory)} stored memory entries and {len(facts)} extracted facts.",
+        ]
+
+        if recent_items:
+            lines.append("Most recent memory snippets:")
+            for item in recent_items:
+                user_text = str(item.get("user", "")).strip()
+                ai_text = str(item.get("ai", "")).strip()
+                if user_text and ai_text:
+                    lines.append(f"- User: {user_text[:120]} | Future: {ai_text[:120]}")
+                elif user_text:
+                    lines.append(f"- User: {user_text[:160]}")
+                elif ai_text:
+                    lines.append(f"- Future: {ai_text[:160]}")
+
+        lines.append("If you want, ask me a specific recall question and I will answer from saved memory.")
+        return "\n".join(lines)
 
     remember_match = re.search(r"\bremember(?: that)?\s+(?P<fact>.+)", query, re.IGNORECASE)
     if remember_match:

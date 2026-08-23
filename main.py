@@ -7,7 +7,7 @@ import subprocess
 from pathlib import Path
 
 from tools.personality import load_personality, apply_personality
-from tools.memory import load_memory, save_memory, remember
+from tools.memory import load_memory, save_memory, remember, search_memory, extract_facts
 from tools.search import local_search
 from tools.scraper import scrape_url
 from tools.summarizer import summarize_text
@@ -289,15 +289,35 @@ def is_awake(active_until, now=None):
     return now < active_until
 
 
-def format_memory(memory):
+def format_memory(memory, query="", recent_turns=8):
+    """Build prompt context prioritizing the most recent back-and-forth, plus relevant long-term facts."""
     if not memory:
         return "No past memories."
+
+    recent = memory[-recent_turns:]
+    relevant = search_memory(memory, query, limit=6) if query else []
+
+    combined = []
+    seen = set()
+    for item in relevant + recent:
+        key = (item.get("user", ""), item.get("ai", ""))
+        if key in seen:
+            continue
+        seen.add(key)
+        combined.append(item)
+
     lines = []
-    for item in memory:
+    for item in combined:
         user = item.get("user", "")
-        bot = item.get("bot", "")
-        lines.append(f"User said: {user}\nFuture replied: {bot}")
-    return "\n".join(lines)
+        ai = item.get("ai", "")
+        lines.append(f"User said: {user}\nFuture replied: {ai}")
+
+    facts = extract_facts(memory)
+    if facts:
+        fact_lines = "\n".join(f"- {fact['subject']}: {fact['value']}" for fact in facts[-12:])
+        lines.append(f"Known facts:\n{fact_lines}")
+
+    return "\n\n".join(lines) if lines else "No past memories."
 
 def _speak_elevenlabs(text):
     """Generate speech via ElevenLabs SDK and play PCM with pyaudio. Returns True on success."""
@@ -362,12 +382,13 @@ def speak(text):
 
 
 def generate_reply(text, personality, memory):
-    memory_text = format_memory(memory)
+    memory_text = format_memory(memory, query=text)
 
     system_prompt = (
         f"{personality}\n\n"
-        f"Here are your memories about the user:\n{memory_text}\n\n"
-        "Use these memories to stay consistent and personal."
+        f"Here is your recent conversation history and relevant long-term memory about the user:\n{memory_text}\n\n"
+        "Use the recent conversation turns above to keep this reply consistent with what was just discussed, "
+        "and use the long-term facts/history for anything older. Do not respond with unrelated or random information."
     )
 
     if not client:

@@ -1,3 +1,7 @@
+param(
+  [switch]$NoDashboard
+)
+
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $false
 
@@ -93,6 +97,53 @@ function Wait-ForServer {
   return $false
 }
 
+function Get-LanIPv4 {
+  $candidate = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+    Where-Object { $_.IPAddress -notlike '169.254.*' -and $_.IPAddress -ne '127.0.0.1' -and $_.PrefixOrigin -ne 'WellKnown' } |
+    Sort-Object -Property @{Expression = { $_.InterfaceAlias -eq 'Wi-Fi' }; Descending = $true } |
+    Select-Object -First 1
+  return $candidate.IPAddress
+}
+
+function Confirm-PhoneReachability {
+  param([string]$LanIP)
+
+  if (-not $LanIP) {
+    Write-Warning 'Could not detect a LAN IP address. Phone access may not work.'
+    return
+  }
+
+  $phoneUrl = "http://${LanIP}:8000/dashboard"
+  $urlFile = Join-Path $projectRoot 'phone_url.txt'
+  Set-Content -Path $urlFile -Value $phoneUrl -Encoding ascii
+
+  $firewallOk = [bool](Get-NetFirewallRule -DisplayName 'FUTURE Server (8000)' -ErrorAction SilentlyContinue)
+  $wifiProfile = Get-NetConnectionProfile -InterfaceAlias 'Wi-Fi' -ErrorAction SilentlyContinue
+
+  try {
+    $lanCheck = Invoke-WebRequest -Uri "http://${LanIP}:8000/health" -UseBasicParsing -TimeoutSec 3 -ErrorAction Stop
+    $lanReachable = ($lanCheck.StatusCode -eq 200)
+  }
+  catch {
+    $lanReachable = $false
+  }
+
+  Write-Output "Phone URL: $phoneUrl"
+
+  if (-not $firewallOk -or ($wifiProfile -and $wifiProfile.NetworkCategory -eq 'Public') -or -not $lanReachable) {
+    Write-Warning 'Your phone may NOT be able to reach FUTURE right now.'
+    if (-not $firewallOk) {
+      Write-Warning '  - No firewall rule found for port 8000.'
+    }
+    if ($wifiProfile -and $wifiProfile.NetworkCategory -eq 'Public') {
+      Write-Warning '  - Wi-Fi network profile is set to Public, which blocks inbound connections.'
+    }
+    Write-Warning '  Run setup_future_firewall.ps1 once as Administrator to fix this permanently.'
+  } else {
+    Write-Output 'LAN check passed: phone should be able to reach FUTURE at the URL above.'
+  }
+}
+
 Ensure-RuntimePython
 Ensure-ServerDependencies
 
@@ -108,18 +159,33 @@ if ($listener) {
   $cmd = [string]($owner.CommandLine)
 
   if ($cmd -match 'uvicorn\s+api_server:app') {
-    Open-DashboardWindow -Url $dashboardUrl
-    Write-Output "FUTURE server already running on port 8000 (PID $ownerPid)."
-    exit 0
-  }
+    try {
+      $authCheck = Invoke-WebRequest -Uri 'http://127.0.0.1:8000/api/auth/status' -UseBasicParsing -TimeoutSec 2 -ErrorAction Stop
+      if ($authCheck.StatusCode -eq 200) {
+        if (-not $NoDashboard) {
+          Open-DashboardWindow -Url $dashboardUrl
+        }
+        Write-Output "FUTURE server already running on port 8000 (PID $ownerPid)."
+        Confirm-PhoneReachability -LanIP (Get-LanIPv4)
+        exit 0
+      }
+    }
+    catch {
+      # Replace stale Future processes that predate the current API contract.
+    }
 
-  Write-Output "Port 8000 is in use by PID $ownerPid. Not replacing non-FUTURE process."
-  exit 1
+    Write-Output "Restarting stale FUTURE server (PID $ownerPid)..."
+    Stop-Process -Id $ownerPid -Force
+  }
+  else {
+    Write-Output "Port 8000 is in use by PID $ownerPid. Not replacing non-FUTURE process."
+    exit 1
+  }
 }
 
 $psi = New-Object System.Diagnostics.ProcessStartInfo
 $psi.FileName = $pythonExe
-$psi.Arguments = '-m uvicorn api_server:app --host 127.0.0.1 --port 8000'
+$psi.Arguments = '-m uvicorn api_server:app --host 0.0.0.0 --port 8000'
 $psi.WorkingDirectory = $projectRoot
 $psi.UseShellExecute = $false
 $psi.CreateNoWindow = $true
@@ -131,5 +197,11 @@ if (-not $ready) {
   exit 1
 }
 
-Open-DashboardWindow -Url $dashboardUrl
-Write-Output 'FUTURE server started and desktop window opened.'
+if (-not $NoDashboard) {
+  Open-DashboardWindow -Url $dashboardUrl
+  Write-Output 'FUTURE server started and desktop window opened.'
+} else {
+  Write-Output 'FUTURE server started in background mode for mobile access.'
+}
+
+Confirm-PhoneReachability -LanIP (Get-LanIPv4)

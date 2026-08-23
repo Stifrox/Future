@@ -4,26 +4,41 @@ import platform
 import random
 import json
 import re
+import base64
 import secrets
 import subprocess
+import time
 import urllib.parse
 import webbrowser
+import uuid
 from collections import deque
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 import requests
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from pydantic import BaseModel
+
+try:
+    from dotenv import load_dotenv
+    load_dotenv(dotenv_path=Path(__file__).resolve().parent / ".env")
+except Exception:
+    pass
+
+try:
+    from openai import OpenAI
+except Exception:
+    OpenAI = None
 
 try:
     from tools.alpaca_trading import AutopilotPaperTrader
 except Exception:
     AutopilotPaperTrader = None
 from tools.anycubic import fetch_print_status, slice_and_send, slice_model, upload_gcode
+from tools.memory import load_memory, remember, save_memory
 from updater import self_update_execute_latest, self_update_plan
 from tools.integrations import (
     complete_google_calendar_authorization,
@@ -35,6 +50,7 @@ from tools.integrations import (
     list_gmail_messages,
     list_google_calendar_events,
     run_spotify_callback_server,
+    send_gmail_message,
     set_spotify_tokens,
     spotify_next,
     spotify_pause,
@@ -48,6 +64,28 @@ except Exception:
     psutil = None
 
 app = FastAPI(title="Future API", version="1.0.0")
+
+ACCESS_PASSWORD = os.getenv("FUTURE_ACCESS_PASSWORD", "4056")
+ACCESS_COOKIE = "future_access"
+MAX_ACCESS_ATTEMPTS = 3
+ACCESS_LOCKOUT_SECONDS = 300
+ACCESS_SESSION_SECONDS = 300
+_access_failures: Dict[str, int] = {}
+_access_lockouts: Dict[str, float] = {}
+
+
+def _access_client_key(request: Request) -> str:
+    return request.client.host if request.client else "unknown"
+
+
+@app.middleware("http")
+async def require_access_password(request: Request, call_next):
+    path = request.url.path
+    is_public_api = path in {"/api/auth/status", "/api/auth/verify"}
+    if path.startswith("/api/") and not is_public_api:
+        if request.cookies.get(ACCESS_COOKIE) != "unlocked":
+            return JSONResponse(status_code=401, content={"detail": "Future is locked"})
+    return await call_next(request)
 
 cors_origins = [origin.strip() for origin in os.getenv("FUTURE_CORS_ORIGINS", "*").split(",") if origin.strip()]
 if cors_origins == ["*"]:
@@ -87,6 +125,31 @@ class ChatMessageRequest(BaseModel):
     message: str
 
 
+class GmailSendRequest(BaseModel):
+    to: str
+    subject: str = "Future message"
+    body: str = ""
+
+
+class ImageGenerateRequest(BaseModel):
+    prompt: str
+    size: str = "1024x1024"
+    model: str = "gpt-image-1"
+
+
+class ImageAnalyzeRequest(BaseModel):
+    image_data_url: str
+    question: str = "What do you see in this image?"
+    model: str = "gpt-4.1-mini"
+
+
+class ImageEditRequest(BaseModel):
+    image_data_url: str
+    prompt: str
+    size: str = "1024x1024"
+    model: str = "gpt-image-1"
+
+
 class TtsRequest(BaseModel):
     text: str
     voice_gender: str = "male"
@@ -121,12 +184,32 @@ class SelfUpdatePlanRequest(BaseModel):
     scope: str = "auto"
 
 
+class AccessPasswordRequest(BaseModel):
+    password: str
+
+
 def _safe_float(value, default=0.0):
     """Safely convert value to float with fallback default."""
     try:
         return float(value)
     except Exception:
         return default
+
+
+def _openai_client_from_env():
+    api_key = (os.getenv("OPENAI_API_KEY", "") or os.getenv("FUTURE_OPENAI_API_KEY", "")).strip()
+    if not api_key or OpenAI is None:
+        return None
+    try:
+        return OpenAI(api_key=api_key)
+    except Exception:
+        return None
+
+
+def _image_output_dir() -> Path:
+    path = Path("generated") / "images"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
 
 def _chat_reply(message: str, recent_context=None) -> str:
     """Resolve chat handler lazily so optional config mismatches do not break API startup."""
@@ -516,6 +599,10 @@ def _downloads_directory() -> Path:
 _DASHBOARD_HTML_PATH = Path(__file__).parent / "dashboard.html"
 if not _DASHBOARD_HTML_PATH.exists():
     _DASHBOARD_HTML_PATH = Path(r"C:\Users\tallm\Downloads\atlas-dashboard.html")
+_APP_ROOT = Path(__file__).parent
+_PWA_MANIFEST_PATH = _APP_ROOT / "manifest.json"
+_PWA_SERVICE_WORKER_PATH = _APP_ROOT / "sw.js"
+_PWA_ICON_DIRECTORY = _APP_ROOT / "icons"
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -535,9 +622,90 @@ def serve_dashboard() -> HTMLResponse:
     )
 
 
+@app.get("/manifest.json")
+def serve_manifest() -> FileResponse:
+    return FileResponse(_PWA_MANIFEST_PATH, media_type="application/manifest+json")
+
+
+@app.get("/sw.js")
+def serve_service_worker() -> FileResponse:
+    return FileResponse(_PWA_SERVICE_WORKER_PATH, media_type="application/javascript")
+
+
+@app.get("/apple-touch-icon.png")
+def serve_apple_touch_icon() -> FileResponse:
+    return FileResponse(_PWA_ICON_DIRECTORY / "future-icon-ios-180.png", media_type="image/png")
+
+
+@app.get("/icons/{icon_name}")
+def serve_icon(icon_name: str) -> FileResponse:
+    icon_path = (_PWA_ICON_DIRECTORY / icon_name).resolve()
+    if _PWA_ICON_DIRECTORY.resolve() not in icon_path.parents or not icon_path.is_file():
+        raise HTTPException(status_code=404, detail="Icon not found")
+    media_type = "image/png" if icon_path.suffix.lower() == ".png" else "image/svg+xml"
+    return FileResponse(icon_path, media_type=media_type)
+
+
 @app.get("/health")
 def health() -> Dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/api/auth/status")
+def access_status(request: Request) -> Response:
+    unlocked = request.cookies.get(ACCESS_COOKIE) == "unlocked"
+    response = JSONResponse(content={"unlocked": unlocked})
+    if unlocked:
+        response.set_cookie(
+            ACCESS_COOKIE,
+            "unlocked",
+            max_age=ACCESS_SESSION_SECONDS,
+            httponly=True,
+            samesite="lax",
+        )
+    return response
+
+
+@app.post("/api/auth/verify")
+def verify_access_password(payload: AccessPasswordRequest, request: Request) -> Response:
+    client_key = _access_client_key(request)
+    now = time.time()
+    locked_until = _access_lockouts.get(client_key, 0)
+    if locked_until > now:
+        retry_after = max(1, int(locked_until - now))
+        return JSONResponse(
+            status_code=429,
+            content={"detail": f"Too many failed attempts. Try again in {retry_after} seconds."},
+            headers={"Retry-After": str(retry_after)},
+        )
+
+    if secrets.compare_digest(payload.password, ACCESS_PASSWORD):
+        _access_failures.pop(client_key, None)
+        _access_lockouts.pop(client_key, None)
+        response = JSONResponse(content={"unlocked": True})
+        response.set_cookie(
+            ACCESS_COOKIE,
+            "unlocked",
+            max_age=ACCESS_SESSION_SECONDS,
+            httponly=True,
+            samesite="lax",
+        )
+        return response
+
+    failures = _access_failures.get(client_key, 0) + 1
+    _access_failures[client_key] = failures
+    if failures >= MAX_ACCESS_ATTEMPTS:
+        _access_lockouts[client_key] = now + ACCESS_LOCKOUT_SECONDS
+        _access_failures.pop(client_key, None)
+        return JSONResponse(
+            status_code=429,
+            content={"detail": "Three failed attempts. Future is locked for 5 minutes."},
+            headers={"Retry-After": str(ACCESS_LOCKOUT_SECONDS)},
+        )
+    return JSONResponse(
+        status_code=401,
+        content={"detail": f"Incorrect password. {MAX_ACCESS_ATTEMPTS - failures} attempts remaining."},
+    )
 
 
 def _gpu_utilization() -> float:
@@ -648,6 +816,189 @@ def gmail_inbox(limit: int = Query(default=5, ge=1, le=20)) -> List[Dict[str, ob
             }
         )
     return normalized
+
+
+@app.post("/api/gmail/send")
+def gmail_send(payload: GmailSendRequest) -> Dict[str, str]:
+    to_value = (payload.to or "").strip()
+    subject_value = (payload.subject or "Future message").strip() or "Future message"
+    body_value = (payload.body or "").strip()
+
+    if not to_value:
+        raise HTTPException(status_code=400, detail="Recipient is required")
+    if not body_value:
+        raise HTTPException(status_code=400, detail="Email body is required")
+
+    try:
+        if "@" in to_value:
+            send_gmail_message(to_value, subject_value, body_value)
+            return {"status": "sent", "to": to_value, "subject": subject_value}
+
+        # Fallback for contact aliases handled by existing integration logic.
+        draft_reply = handle_gmail_command(
+            f"send email to {to_value} subject {subject_value} message {body_value}"
+        )
+        if "Should I send it now?" in draft_reply:
+            confirm_reply = handle_gmail_command("yes")
+            if "Gmail sent" in confirm_reply:
+                return {"status": "sent", "to": to_value, "subject": subject_value}
+            raise HTTPException(status_code=400, detail=confirm_reply)
+
+        if "Gmail sent" in draft_reply:
+            return {"status": "sent", "to": to_value, "subject": subject_value}
+
+        raise HTTPException(status_code=400, detail=draft_reply)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=f"Gmail unavailable: {exc}") from exc
+
+
+@app.post("/api/images/generate")
+def image_generate(payload: ImageGenerateRequest) -> Dict[str, str]:
+    prompt = (payload.prompt or "").strip()
+    if not prompt:
+        raise HTTPException(status_code=400, detail="Prompt is required")
+
+    client = _openai_client_from_env()
+    if not client:
+        raise HTTPException(status_code=503, detail="OpenAI image generation is not configured")
+
+    try:
+        result = client.images.generate(
+            model=(payload.model or "gpt-image-1").strip() or "gpt-image-1",
+            prompt=prompt,
+            size=(payload.size or "1024x1024").strip() or "1024x1024",
+        )
+        data = getattr(result, "data", None) or []
+        if not data:
+            raise RuntimeError("No image data returned")
+
+        b64 = getattr(data[0], "b64_json", None)
+        if not b64:
+            raise RuntimeError("Image response did not include base64 payload")
+
+        raw = base64.b64decode(b64)
+        image_id = uuid.uuid4().hex[:12]
+        out_path = _image_output_dir() / f"generated_{image_id}.png"
+        out_path.write_bytes(raw)
+
+        return {
+            "image_data_url": f"data:image/png;base64,{b64}",
+            "file": str(out_path).replace("\\", "/"),
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=f"Image generation failed: {exc}") from exc
+
+
+@app.post("/api/images/analyze")
+def image_analyze(payload: ImageAnalyzeRequest) -> Dict[str, str]:
+    image_data_url = (payload.image_data_url or "").strip()
+    if not image_data_url:
+        raise HTTPException(status_code=400, detail="image_data_url is required")
+    if not image_data_url.startswith("data:image/"):
+        raise HTTPException(status_code=400, detail="image_data_url must be a data URL")
+
+    question = (payload.question or "What do you see in this image?").strip() or "What do you see in this image?"
+    client = _openai_client_from_env()
+    if not client:
+        raise HTTPException(status_code=503, detail="OpenAI vision is not configured")
+
+    model_name = (payload.model or "gpt-4.1-mini").strip() or "gpt-4.1-mini"
+    try:
+        response = client.chat.completions.create(
+            model=model_name,
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": question},
+                        {"type": "image_url", "image_url": {"url": image_data_url}},
+                    ],
+                }
+            ],
+            max_completion_tokens=500,
+        )
+        text = ""
+        if getattr(response, "choices", None):
+            text = (response.choices[0].message.content or "").strip()
+        if not text:
+            text = "I could not extract details from that image."
+
+        # Save a concise record of the analyzed image content to long-term memory.
+        try:
+            memory = load_memory()
+            remember(
+                memory,
+                f"image analysis request: {question[:280]}",
+                f"Image analysis result: {text[:1600]}",
+            )
+            save_memory(memory)
+        except Exception as memory_exc:
+            # Do not fail image analysis if memory persistence has an issue.
+            print(f"Could not persist image analysis memory: {memory_exc}")
+
+        return {"analysis": text}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=f"Image analysis failed: {exc}") from exc
+
+
+@app.post("/api/images/edit")
+def image_edit(payload: ImageEditRequest) -> Dict[str, str]:
+    image_data_url = (payload.image_data_url or "").strip()
+    prompt = (payload.prompt or "").strip()
+    if not image_data_url:
+        raise HTTPException(status_code=400, detail="image_data_url is required")
+    if not image_data_url.startswith("data:image/"):
+        raise HTTPException(status_code=400, detail="image_data_url must be a data URL")
+    if not prompt:
+        raise HTTPException(status_code=400, detail="Prompt is required")
+
+    client = _openai_client_from_env()
+    if not client:
+        raise HTTPException(status_code=503, detail="OpenAI image edit is not configured")
+
+    try:
+        header, b64_data = image_data_url.split(",", 1)
+        _ = header
+        raw = base64.b64decode(b64_data)
+
+        image_id = uuid.uuid4().hex[:12]
+        source_path = _image_output_dir() / f"edit_source_{image_id}.png"
+        source_path.write_bytes(raw)
+
+        with source_path.open("rb") as image_file:
+            result = client.images.edit(
+                model=(payload.model or "gpt-image-1").strip() or "gpt-image-1",
+                image=image_file,
+                prompt=prompt,
+                size=(payload.size or "1024x1024").strip() or "1024x1024",
+            )
+
+        data = getattr(result, "data", None) or []
+        if not data:
+            raise RuntimeError("No edited image returned")
+
+        edited_b64 = getattr(data[0], "b64_json", None)
+        if not edited_b64:
+            raise RuntimeError("Edited image response did not include base64 payload")
+
+        edited_raw = base64.b64decode(edited_b64)
+        out_path = _image_output_dir() / f"edited_{image_id}.png"
+        out_path.write_bytes(edited_raw)
+
+        return {
+            "image_data_url": f"data:image/png;base64,{edited_b64}",
+            "file": str(out_path).replace("\\", "/"),
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=f"Image edit failed: {exc}") from exc
 
 
 @app.get("/api/stocks/watchlist")

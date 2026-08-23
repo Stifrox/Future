@@ -4,6 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FUTURE - Personal Console</title>
+<meta name="theme-color" content="#15171a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="FUTURE">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" type="image/png" sizes="512x512" href="/icons/future-icon-512.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -515,6 +523,16 @@
     flex-shrink:0;
   }
   .chat-send svg{ width:16px; height:16px; }
+  .chat-image{
+    width:40px; height:40px;
+    background:var(--bg-inset);
+    border:1px solid var(--border);
+    border-radius:var(--radius-m);
+    color:var(--text-2);
+    display:flex; align-items:center; justify-content:center;
+    flex-shrink:0;
+  }
+  .chat-image svg{ width:16px; height:16px; }
   .chat-mic-lock{
     width:40px; height:40px;
     background:var(--bg-inset);
@@ -530,6 +548,37 @@
     background:var(--steel-soft);
   }
   .chat-mic-lock svg{ width:16px; height:16px; }
+  .bubble-image-wrap{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+  }
+  .bubble-image{
+    width:min(100%, 420px);
+    max-height:420px;
+    object-fit:contain;
+    border-radius:10px;
+    border:1px solid var(--border-bright);
+    background:#0a0b0c;
+  }
+  .bubble-image-actions{
+    display:flex;
+    gap:8px;
+    align-items:center;
+  }
+  .bubble-image-actions a,
+  .bubble-image-actions button{
+    font-family:var(--font-label);
+    font-size:10px;
+    letter-spacing:0.8px;
+    text-transform:uppercase;
+    padding:6px 10px;
+    border-radius:8px;
+    border:1px solid var(--border-bright);
+    background:var(--bg-panel-raised);
+    color:var(--text-2);
+    text-decoration:none;
+  }
 
   .calendar-range{
     display:flex;
@@ -558,21 +607,50 @@
     flex-direction:column;
     gap:10px;
   }
+  .calendar-grid-head{
+    display:grid;
+    grid-template-columns:repeat(7, minmax(0, 1fr));
+    gap:6px;
+  }
+  .calendar-grid-head span{
+    text-align:center;
+    font-family:var(--font-label);
+    font-size:9px;
+    letter-spacing:1px;
+    text-transform:uppercase;
+    color:var(--text-3);
+    padding:2px 0 4px;
+  }
   .calendar-range-summary{
     font-size:11px;
     color:var(--text-3);
     letter-spacing:0.4px;
   }
   .calendar-day-stack{
-    display:flex;
-    flex-direction:column;
-    gap:10px;
+    display:grid;
+    gap:8px;
+  }
+  .calendar-day-stack.range-day{
+    grid-template-columns:1fr;
+  }
+  .calendar-day-stack.range-week{
+    grid-template-columns:repeat(2, minmax(0, 1fr));
+  }
+  .calendar-day-stack.range-month{
+    grid-template-columns:repeat(7, minmax(0, 1fr));
   }
   .calendar-day-card{
-    padding:10px 11px;
+    min-height:110px;
+    padding:9px 10px;
     border:1px solid var(--border);
     border-radius:var(--radius-m);
     background:linear-gradient(180deg, rgba(27,30,33,0.96), rgba(14,15,17,0.96));
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+  }
+  .calendar-day-card.outside-month{
+    opacity:0.5;
   }
   .calendar-day-card.today{
     border-color:var(--steel-dim);
@@ -616,21 +694,26 @@
   .calendar-day-events{
     display:flex;
     flex-direction:column;
-    gap:7px;
+    gap:6px;
+    margin-top:auto;
   }
   .calendar-event-pill{
-    padding:8px 10px;
+    padding:6px 8px;
     border-radius:999px;
     border:1px solid var(--border-bright);
     background:var(--bg-inset);
     display:flex;
     align-items:flex-start;
-    gap:8px;
+    gap:7px;
+  }
+  .calendar-event-pill.compact{
+    padding:5px 7px;
+    gap:5px;
   }
   .calendar-event-time{
     flex-shrink:0;
     font-family:var(--font-mono);
-    font-size:10px;
+    font-size:9px;
     color:var(--amber);
     letter-spacing:0.4px;
     text-transform:uppercase;
@@ -643,7 +726,7 @@
     gap:1px;
   }
   .calendar-event-title{
-    font-size:12px;
+    font-size:11px;
     font-weight:600;
     color:var(--text-1);
     line-height:1.2;
@@ -654,8 +737,169 @@
     line-height:1.2;
   }
   .calendar-empty-day{
+    font-size:10px;
+    color:var(--text-3);
+  }
+
+  .compose-overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(5,6,7,0.62);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    z-index:1100;
+  }
+  .compose-overlay.open{ display:flex; }
+  .compose-modal{
+    width:680px;
+    max-width:94vw;
+    max-height:88vh;
+    overflow-y:auto;
+    background:var(--bg-panel);
+    border:1px solid var(--border-bright);
+    border-radius:var(--radius-m);
+    box-shadow:0 22px 64px rgba(0,0,0,0.52);
+  }
+  .compose-body{
+    padding:15px;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+  }
+  .compose-field label{
+    display:block;
+    font-family:var(--font-label);
+    font-size:10px;
+    letter-spacing:1px;
+    color:var(--text-3);
+    text-transform:uppercase;
+    margin-bottom:5px;
+  }
+  .compose-field input,
+  .compose-field textarea{
+    width:100%;
+    background:var(--bg-inset);
+    border:1px solid var(--border);
+    border-radius:var(--radius-s);
+    padding:10px 11px;
+    color:var(--text-1);
+    font-size:12.5px;
+    font-family:var(--font-mono);
+  }
+  .compose-field textarea{
+    min-height:210px;
+    resize:vertical;
+    line-height:1.5;
+  }
+  .compose-field input:focus,
+  .compose-field textarea:focus{
+    outline:none;
+    border-color:var(--steel-dim);
+  }
+  .compose-note{
     font-size:11px;
     color:var(--text-3);
+  }
+  .compose-actions{
+    display:flex;
+    justify-content:flex-end;
+    gap:10px;
+    border-top:1px solid var(--border);
+    padding:14px 15px;
+  }
+
+  .image-overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(5,6,7,0.62);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    z-index:1110;
+  }
+  .image-overlay.open{ display:flex; }
+  .image-modal{
+    width:860px;
+    max-width:96vw;
+    max-height:90vh;
+    overflow-y:auto;
+    background:var(--bg-panel);
+    border:1px solid var(--border-bright);
+    border-radius:var(--radius-m);
+    box-shadow:0 24px 72px rgba(0,0,0,0.5);
+  }
+  .image-body{
+    padding:15px;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:12px;
+  }
+  .image-card{
+    border:1px solid var(--border);
+    border-radius:var(--radius-s);
+    background:var(--bg-inset);
+    padding:12px;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+  }
+  .image-card h3{
+    font-family:var(--font-label);
+    font-size:11px;
+    letter-spacing:1px;
+    text-transform:uppercase;
+    color:var(--text-2);
+  }
+  .image-card textarea,
+  .image-card input[type="text"]{
+    width:100%;
+    background:var(--bg-panel-raised);
+    border:1px solid var(--border);
+    border-radius:var(--radius-s);
+    padding:9px 10px;
+    color:var(--text-1);
+    font-family:var(--font-mono);
+    font-size:12px;
+  }
+  .image-card textarea{ min-height:110px; resize:vertical; }
+  .image-card textarea:focus,
+  .image-card input[type="text"]:focus{ outline:none; border-color:var(--steel-dim); }
+  .image-dropzone{
+    border:1px dashed var(--border-bright);
+    border-radius:var(--radius-s);
+    min-height:150px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color:var(--text-3);
+    font-size:11px;
+    padding:10px;
+    text-align:center;
+    background:rgba(255,255,255,0.01);
+  }
+  .image-dropzone.has-image{
+    border-style:solid;
+    border-color:var(--steel-dim);
+  }
+  .image-preview{
+    width:100%;
+    max-height:280px;
+    object-fit:contain;
+    border-radius:var(--radius-s);
+    border:1px solid var(--border);
+    background:#0a0b0c;
+  }
+  .image-actions{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+  }
+  .image-actions .btn{ padding:7px 11px; font-size:10px; }
+  .image-status{
+    font-size:11px;
+    color:var(--text-3);
+    min-height:16px;
   }
 
   /* ---------- GAUGES ---------- */
@@ -886,6 +1130,35 @@
   }
   .btn.primary{ background:var(--steel-soft); border-color:var(--steel-dim); color:var(--steel); }
 
+  .access-gate{
+    position:fixed; inset:0; z-index:2000;
+    display:flex; align-items:center; justify-content:center;
+    padding:20px;
+    background:radial-gradient(ellipse at 50% 0%, rgba(138,172,196,0.08), transparent 48%), var(--bg-void);
+  }
+  .access-gate.unlocked{ display:none; }
+  .access-card{
+    width:360px; max-width:100%; padding:28px;
+    background:var(--bg-panel); border:1px solid var(--border-bright);
+    border-radius:var(--radius-m); box-shadow:0 24px 80px rgba(0,0,0,0.45);
+    text-align:center;
+  }
+  .access-mark{
+    width:76px; height:76px; margin:0 auto 18px; border-radius:16px;
+    object-fit:cover; border:1px solid var(--border-bright);
+  }
+  .access-card h1{ font-family:var(--font-label); font-size:25px; letter-spacing:2px; }
+  .access-card p{ margin-top:5px; color:var(--text-3); font-size:12px; }
+  .access-form{ display:flex; flex-direction:column; gap:10px; margin-top:22px; }
+  .access-form input{
+    width:100%; padding:13px 12px; text-align:center; letter-spacing:7px;
+    background:var(--bg-inset); border:1px solid var(--border); border-radius:var(--radius-s);
+    color:var(--text-1); font:600 18px var(--font-mono);
+  }
+  .access-form input:focus{ outline:none; border-color:var(--steel); }
+  .access-form button{ min-height:44px; }
+  .access-error{ min-height:18px; color:var(--amber); font-size:11px; }
+
   /* ---------- COMPACT DROPDOWN LAYOUT ---------- */
   .compact-mode .layout{
     display:block;
@@ -957,11 +1230,95 @@
     border-radius:0;
   }
 
+  .mobile-dock{ display:none; }
+
+  .install-btn{ display:none; }
+
+  @media (max-width: 680px){
+    :root{ --mobile-dock-height:68px; }
+
+    body{ font-size:14px; padding-bottom:var(--mobile-dock-height); }
+    .topbar{
+      position:sticky; top:0; z-index:20;
+      padding:11px 14px;
+      gap:10px;
+      min-height:62px;
+    }
+    .brand{ font-size:17px; letter-spacing:1.6px; }
+    .brand span{ display:none; }
+    .topbar-center{ margin-left:auto; gap:8px; }
+    .topbar-center .time{ font-size:17px; }
+    .topbar-center .time small{ font-size:10px; }
+    .topbar-center .date,
+    .topbar-center .divider,
+    .topbar-right .mini-stats,
+    .topbar-right .conn-pill{ display:none; }
+    .topbar-right{ gap:7px; }
+    .install-btn{ display:flex; }
+
+    .layout{ display:block; background:transparent; }
+    .col{ padding:12px; gap:12px; }
+    .col-left,.col-right,.bottom-strip{ display:none !important; }
+    .col-center{
+      display:flex;
+      min-height:calc(100vh - 62px);
+      max-height:none;
+      padding-bottom:12px;
+    }
+    .chat-header{ padding:3px 2px 5px; }
+    .chat-header h1{ font-size:23px; }
+    .chat-header .sub{ font-size:11px; }
+    .chat-thread{
+      flex:1;
+      min-height:calc(100vh - 250px);
+      max-height:none;
+      padding:10px 2px;
+    }
+    .chat-input-row{
+      position:sticky; bottom:calc(var(--mobile-dock-height) + 8px);
+      padding:7px;
+      margin:0 -4px;
+      background:rgba(10,11,12,0.94);
+      z-index:10;
+    }
+    .chat-input-row input{ min-width:0; font-size:16px; }
+    .chat-input-row button{ min-width:42px; min-height:42px; }
+    .compact-accordions{ margin-top:12px; padding-bottom:8px; }
+    .compact-item summary{ min-height:48px; padding:13px 14px; }
+    .compact-content .panel-body{ padding:14px; }
+
+    .mobile-dock{
+      position:fixed; left:0; right:0; bottom:0; z-index:30;
+      display:grid; grid-template-columns:repeat(5, 1fr);
+      height:var(--mobile-dock-height);
+      padding:7px 8px max(7px, env(safe-area-inset-bottom));
+      background:rgba(21,23,26,0.97);
+      border-top:1px solid var(--border-bright);
+      box-shadow:0 -8px 24px rgba(0,0,0,0.24);
+    }
+    .mobile-dock button{
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      gap:3px; min-width:0; border:0; background:transparent;
+      color:var(--text-3); font-family:var(--font-label); font-size:9px;
+      letter-spacing:.7px; text-transform:uppercase;
+    }
+    .mobile-dock button svg{ width:20px; height:20px; }
+    .mobile-dock button.active{ color:var(--steel); }
+    .settings-modal{ max-height:calc(100vh - 24px); max-width:calc(100vw - 24px); }
+    .image-body{ grid-template-columns:1fr; }
+    .image-modal{ max-height:calc(100vh - 24px); }
+    .calendar-day-stack.range-month{ grid-template-columns:repeat(3, minmax(0, 1fr)); }
+    .calendar-day-stack.range-week{ grid-template-columns:1fr; }
+    .calendar-grid-head{ grid-template-columns:repeat(3, minmax(0, 1fr)); }
+    .calendar-grid-head span:nth-child(n+4){ display:none; }
+  }
+
   @media (max-width: 1100px){
     .layout{ grid-template-columns:1fr; }
     .col{ max-height:none; }
     .bottom-strip{ grid-template-columns:1fr; }
     .chat-thread{ max-height:calc(100vh - 280px); }
+    .calendar-day-stack.range-month{ grid-template-columns:repeat(4, minmax(0, 1fr)); }
   }
 
   @media (prefers-reduced-motion: reduce){
@@ -970,6 +1327,19 @@
 </style>
 </head>
 <body>
+
+<section class="access-gate" id="access-gate" aria-label="Unlock FUTURE">
+  <div class="access-card">
+    <img class="access-mark" src="/icons/future-icon-192.png" alt="FUTURE">
+    <h1>FUTURE</h1>
+    <p>Enter your access password to continue.</p>
+    <form class="access-form" id="access-form">
+      <input id="access-password" type="password" inputmode="numeric" autocomplete="current-password" maxlength="32" aria-label="Access password" autofocus>
+      <button class="btn primary" type="submit">Unlock</button>
+      <div class="access-error" id="access-error" role="alert"></div>
+    </form>
+  </div>
+</section>
 
 <div class="app">
 
@@ -993,6 +1363,9 @@
         <div class="mini-stat"><span class="k">NET</span><span class="v mono" id="mini-net">-</span></div>
       </div>
       <div class="conn-pill"><span class="dot demo" id="conn-dot"></span><span id="conn-label">Ready</span></div>
+      <button class="icon-btn install-btn" id="install-app" title="Install FUTURE" aria-label="Install FUTURE">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v12M7 10l5 5 5-5M4 20h16"/></svg>
+      </button>
       <button class="icon-btn" onclick="Settings.open()" title="Settings">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       </button>
@@ -1079,8 +1452,7 @@
         </div>
         <div class="panel-body" id="calendar-list">
           <div class="calendar-range" id="calendar-range-controls">
-            <button class="calendar-range-btn active" type="button" data-range="today">Today</button>
-            <button class="calendar-range-btn" type="button" data-range="tomorrow">Tomorrow</button>
+            <button class="calendar-range-btn active" type="button" data-range="day">Day</button>
             <button class="calendar-range-btn" type="button" data-range="week">Week</button>
             <button class="calendar-range-btn" type="button" data-range="month">Month</button>
           </div>
@@ -1136,6 +1508,8 @@
 
       <form class="chat-input-row" id="chat-form">
         <input type="text" id="chat-input" placeholder="Message Future..." autocomplete="off">
+        <button type="button" class="chat-image" id="chat-image-open" title="Upload image"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-6 6-3-3-4 4"/></svg></button>
+        <input type="file" id="chat-image-picker" accept="image/*" style="display:none;">
         <button type="button" class="chat-mic-lock" id="chat-mic-lock" title="Voice lock off"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 14a3 3 0 0 0 3-3V7a3 3 0 1 0-6 0v4a3 3 0 0 0 3 3Z"/><path d="M19 11a7 7 0 0 1-14 0"/><path d="M12 18v4"/><path d="M8 22h8"/></svg></button>
         <button type="submit" class="chat-send"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/></svg></button>
       </form>
@@ -1207,7 +1581,7 @@
           <div class="fusion-row"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/></svg><div class="fn">Robotic Arm v2</div><div class="ft">Yesterday</div></div>
           <div class="fusion-row"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 4h16v16H4z"/></svg><div class="fn">Finger Modification v1</div><div class="ft">Mar 29</div></div>
         </div>
-        <a class="panel-link" href="#">Open Fusion 360 -></a>
+        <a class="panel-link" href="https://www.autodesk.com/products/fusion-360/overview" target="_blank" rel="noopener">Open Fusion 360 -></a>
       </div>
 
       <!-- ANYCUBIC SLICER -->
@@ -1271,13 +1645,31 @@
         <div class="map-frame"><div class="river"></div><div class="map-pin"></div></div>
         <div class="map-footer">
           <div><div class="loc" id="map-loc">Home Workshop</div><div class="addr" id="map-addr">8765 50th St W, Lonsdale MN</div></div>
-          <button class="map-open">Open Maps -></button>
+          <button class="map-open" type="button" id="map-open">Open Maps -></button>
         </div>
       </div>
     </div>
   </div>
 
 </div>
+
+<nav class="mobile-dock" id="mobile-dock" aria-label="Primary navigation">
+  <button class="active" data-mobile-target="chat-thread" aria-label="Chat">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span>Chat</span>
+  </button>
+  <button data-mobile-target="calendar-tag" aria-label="Calendar">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg><span>Calendar</span>
+  </button>
+  <button data-mobile-target="gmail-tag" aria-label="Gmail">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 6-10 7L2 6"/></svg><span>Inbox</span>
+  </button>
+  <button data-mobile-target="spotify-tag" aria-label="Spotify">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="10"/><path d="M8 14.5c2.7-1 5.3-1 8 0M7.5 11.3c3.2-1.2 6.3-1.2 9.5 0M7 8.2c3.7-1.4 7.3-1.4 11 0"/></svg><span>Music</span>
+  </button>
+  <button data-mobile-target="perf-tag" aria-label="System">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 12h4l2-8 4 16 2-8h6"/></svg><span>System</span>
+  </button>
+</nav>
 
 <!-- ================= SETTINGS MODAL ================= -->
 <div class="settings-overlay" id="settings-overlay">
@@ -1305,12 +1697,12 @@
       <div class="settings-group">
         <label>Connected services</label>
         <div class="connections">
-          <div class="connection-row"><span class="cn">Spotify</span><button class="connect-btn">Connect</button></div>
-          <div class="connection-row"><span class="cn">Gmail</span><button class="connect-btn">Connect</button></div>
-          <div class="connection-row"><span class="cn">Google Calendar</span><button class="connect-btn">Connect</button></div>
-          <div class="connection-row"><span class="cn">Fusion 360</span><button class="connect-btn">Connect</button></div>
-          <div class="connection-row"><span class="cn">Anycubic Slicer</span><button class="connect-btn">Connect</button></div>
-          <div class="connection-row"><span class="cn">Stock watchlist</span><button class="connect-btn">Connect</button></div>
+          <div class="connection-row"><span class="cn">Spotify</span><button class="connect-btn" data-connect-service="spotify">Connect</button></div>
+          <div class="connection-row"><span class="cn">Gmail</span><button class="connect-btn" data-connect-service="google-calendar">Connect</button></div>
+          <div class="connection-row"><span class="cn">Google Calendar</span><button class="connect-btn" data-connect-service="google-calendar">Connect</button></div>
+          <div class="connection-row"><span class="cn">Fusion 360</span><button class="connect-btn" data-connect-service="fusion360">Connect</button></div>
+          <div class="connection-row"><span class="cn">Anycubic Slicer</span><button class="connect-btn" disabled title="Configure the printer integration in the backend">Unavailable</button></div>
+          <div class="connection-row"><span class="cn">Stock watchlist</span><button class="connect-btn" disabled title="Stock watchlist uses the backend configuration">Backend</button></div>
         </div>
         <div class="hint">Connection state is expected to live on your backend (OAuth tokens etc). These buttons just call your backend's connect endpoints - wire them up in the JS "Settings.connect()" stub.</div>
       </div>
@@ -1322,9 +1714,85 @@
   </div>
 </div>
 
+<!-- ================= EMAIL COMPOSE MODAL ================= -->
+<div class="compose-overlay" id="compose-overlay">
+  <div class="compose-modal">
+    <div class="panel-head">
+      <div class="panel-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 6-10 7L2 6"/></svg>
+        Draft Email
+      </div>
+      <button class="icon-btn" id="compose-close" style="width:28px;height:28px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="compose-body">
+      <div class="compose-field">
+        <label>To</label>
+        <input type="text" id="compose-to" placeholder="name@example.com">
+      </div>
+      <div class="compose-field">
+        <label>Subject</label>
+        <input type="text" id="compose-subject" placeholder="Subject">
+      </div>
+      <div class="compose-field">
+        <label>Message</label>
+        <textarea id="compose-body" placeholder="Write the email here..."></textarea>
+      </div>
+      <div class="compose-note">Review and edit this before sending through Future.</div>
+    </div>
+    <div class="compose-actions">
+      <button class="btn" id="compose-cancel">Cancel</button>
+      <button class="btn primary" id="compose-send">Send Email</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= IMAGE STUDIO MODAL ================= -->
+<div class="image-overlay" id="image-overlay">
+  <div class="image-modal">
+    <div class="panel-head">
+      <div class="panel-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-6 6-3-3-4 4"/></svg>
+        Image Studio
+      </div>
+      <button class="icon-btn" id="image-close" style="width:28px;height:28px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="image-body">
+      <section class="image-card">
+        <h3>Generate Image</h3>
+        <textarea id="image-generate-prompt" placeholder="Describe the image to generate..."></textarea>
+        <div class="image-actions">
+          <button class="btn primary" id="image-generate-btn">Generate</button>
+        </div>
+        <img id="image-generated-preview" class="image-preview" alt="Generated image preview" style="display:none;">
+        <div class="image-actions">
+          <a class="btn" id="image-download-link" href="#" download="future-generated.png" style="display:none;text-decoration:none;">Download</a>
+        </div>
+        <div class="image-status" id="image-generate-status"></div>
+      </section>
+
+      <section class="image-card">
+        <h3>Analyze Image</h3>
+        <div id="image-dropzone" class="image-dropzone">Drop an image here, paste from clipboard, or pick a file.</div>
+        <input type="file" id="image-file-input" accept="image/*">
+        <input type="text" id="image-analyze-question" placeholder="Ask about this image (optional)">
+        <img id="image-upload-preview" class="image-preview" alt="Image for analysis" style="display:none;">
+        <div class="image-actions">
+          <button class="btn" id="image-analyze-btn">Analyze Image</button>
+          <button class="btn" id="image-clear-btn">Clear</button>
+        </div>
+        <div class="image-status" id="image-analyze-status"></div>
+      </section>
+    </div>
+  </div>
+</div>
+
 <script>
 const CONFIG = {
-  API_BASE: 'http://localhost:8000',
+  API_BASE: window.location.origin === 'null' ? 'http://localhost:8000' : window.location.origin,
   POLL_INTERVAL_MS: 5000,
 };
 
@@ -1352,11 +1820,34 @@ const tagByService = {
   maps: 'maps-tag',
 };
 
+const apiBaseInput = document.getElementById('settings-api-base');
+if (apiBaseInput) apiBaseInput.value = CONFIG.API_BASE;
+
+function normalizeApiBase(rawBase) {
+  const raw = String(rawBase || '').trim();
+  if (!raw) return 'http://localhost:8000';
+  return raw
+    .replace(/\/+$/, '')
+    .replace(/\/api$/i, '');
+}
+
 async function api(path, opts) {
-  const res = await fetch(CONFIG.API_BASE + path, {
+  const cleanBase = normalizeApiBase(CONFIG.API_BASE);
+  const requestPath = String(path || '').startsWith('/') ? String(path) : `/${String(path || '')}`;
+
+  let res = await fetch(cleanBase + requestPath, {
     headers: { 'Content-Type': 'application/json' },
     ...opts,
   });
+
+  if (res.status === 404 && /\/api$/i.test(String(CONFIG.API_BASE || '')) && requestPath.startsWith('/api/')) {
+    const fallbackPath = requestPath.replace(/^\/api\//, '/');
+    res = await fetch(cleanBase + fallbackPath, {
+      headers: { 'Content-Type': 'application/json' },
+      ...opts,
+    });
+  }
+
   if (!res.ok) {
     let detail = '';
     try {
@@ -1564,9 +2055,9 @@ async function refreshStocks() {
   setServiceLive('stocks', live);
 }
 
-let calendarRange = 'today';
+let calendarRange = 'day';
 function calendarRangeLabel(range) {
-  if (range === 'tomorrow') return 'Tomorrow';
+  if (range === 'day') return 'Today';
   if (range === 'week') return 'This Week';
   if (range === 'month') return 'This Month';
   return 'Today';
@@ -1574,8 +2065,7 @@ function calendarRangeLabel(range) {
 
 function calendarRangeControlsMarkup() {
   return `<div class="calendar-range" id="calendar-range-controls">
-    <button class="calendar-range-btn ${calendarRange === 'today' ? 'active' : ''}" type="button" data-range="today">Today</button>
-    <button class="calendar-range-btn ${calendarRange === 'tomorrow' ? 'active' : ''}" type="button" data-range="tomorrow">Tomorrow</button>
+    <button class="calendar-range-btn ${calendarRange === 'day' ? 'active' : ''}" type="button" data-range="day">Day</button>
     <button class="calendar-range-btn ${calendarRange === 'week' ? 'active' : ''}" type="button" data-range="week">Week</button>
     <button class="calendar-range-btn ${calendarRange === 'month' ? 'active' : ''}" type="button" data-range="month">Month</button>
   </div>`;
@@ -1596,14 +2086,17 @@ function getRangeDates(range) {
   const today = new Date();
   const safeToday = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12, 0, 0, 0);
   if (range === 'month') {
-    const start = new Date(safeToday.getFullYear(), safeToday.getMonth(), 1, 12, 0, 0, 0);
-    const end = new Date(safeToday.getFullYear(), safeToday.getMonth() + 1, 0, 12, 0, 0, 0);
+    const monthStart = new Date(safeToday.getFullYear(), safeToday.getMonth(), 1, 12, 0, 0, 0);
+    const monthEnd = new Date(safeToday.getFullYear(), safeToday.getMonth() + 1, 0, 12, 0, 0, 0);
+    const start = shiftLocalDate(monthStart, -monthStart.getDay());
+    const end = shiftLocalDate(monthEnd, 6 - monthEnd.getDay());
     const days = [];
     for (let cursor = start; cursor <= end; cursor = shiftLocalDate(cursor, 1)) days.push(new Date(cursor));
     return days;
   }
   if (range === 'week') {
-    return Array.from({ length: 7 }, (_, index) => shiftLocalDate(safeToday, index));
+    const weekStart = shiftLocalDate(safeToday, -safeToday.getDay());
+    return Array.from({ length: 7 }, (_, index) => shiftLocalDate(weekStart, index));
   }
   return [safeToday];
 }
@@ -1615,8 +2108,9 @@ function formatCalendarDayLabel(date) {
   return { weekday, month, day };
 }
 
-function renderCalendarEventPill(event) {
-  return `<div class="calendar-event-pill"><div class="calendar-event-time">${esc(event.time || 'All day')}</div><div class="calendar-event-main"><div class="calendar-event-title">${esc(event.title || '(untitled event)')}</div>${event.subtitle ? `<div class="calendar-event-sub">${esc(event.subtitle)}</div>` : ''}</div></div>`;
+function renderCalendarEventPill(event, compact = false) {
+  const compactClass = compact ? ' compact' : '';
+  return `<div class="calendar-event-pill${compactClass}"><div class="calendar-event-time">${esc(event.time || 'All day')}</div><div class="calendar-event-main"><div class="calendar-event-title">${esc(event.title || '(untitled event)')}</div>${compact ? '' : (event.subtitle ? `<div class="calendar-event-sub">${esc(event.subtitle)}</div>` : '')}</div></div>`;
 }
 
 function renderCalendarBubbleRange(events, range) {
@@ -1628,37 +2122,38 @@ function renderCalendarBubbleRange(events, range) {
   }
 
   const days = getRangeDates(range);
+  const monthIndex = (new Date()).getMonth();
   const todayKey = localDateKey(new Date());
-  const summary = range === 'week'
-    ? 'Next seven days at a glance.'
-    : 'This month broken into day bubbles.';
+  const summary = range === 'day'
+    ? 'Today in quick bubbles.'
+    : (range === 'week' ? 'Week overview in day bubbles.' : 'Month overview in calendar bubbles.');
+  const weekHead = `<div class="calendar-grid-head"><span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span></div>`;
 
   const cards = days.map((date) => {
     const key = localDateKey(date);
     const dayEvents = grouped.get(key) || [];
     const label = formatCalendarDayLabel(date);
     const isToday = key === todayKey;
-    return `<div class="calendar-day-card ${isToday ? 'today' : ''}"><div class="calendar-day-top"><div class="calendar-day-chip">${esc(label.weekday)} <span class="calendar-day-number">${esc(label.day)}</span></div><div class="calendar-day-meta">${esc(label.month)}</div></div><div class="calendar-day-events">${dayEvents.length ? dayEvents.map(renderCalendarEventPill).join('') : '<div class="calendar-empty-day">No events yet.</div>'}</div></div>`;
+    const inCurrentMonth = date.getMonth() === monthIndex;
+    const cardClass = `${isToday ? 'today ' : ''}${(!inCurrentMonth && range === 'month') ? 'outside-month' : ''}`.trim();
+    const eventHtml = dayEvents.length
+      ? dayEvents.slice(0, range === 'month' ? 3 : 5).map((event) => renderCalendarEventPill(event, range === 'month')).join('')
+      : '<div class="calendar-empty-day">No events yet.</div>';
+    return `<div class="calendar-day-card ${cardClass}"><div class="calendar-day-top"><div class="calendar-day-chip">${esc(label.weekday)} <span class="calendar-day-number">${esc(label.day)}</span></div><div class="calendar-day-meta">${esc(label.month)}</div></div><div class="calendar-day-events">${eventHtml}</div></div>`;
   }).join('');
 
-  return `<div class="calendar-bubble-view"><div class="calendar-range-summary">${esc(summary)}</div><div class="calendar-day-stack">${cards}</div></div>`;
+  return `<div class="calendar-bubble-view"><div class="calendar-range-summary">${esc(summary)}</div>${range === 'month' || range === 'week' ? weekHead : ''}<div class="calendar-day-stack range-${esc(range)}">${cards}</div></div>`;
 }
 
 function renderCalendarRows(events) {
   const controls = calendarRangeControlsMarkup();
-  if (calendarRange === 'week' || calendarRange === 'month') {
-    return controls + renderCalendarBubbleRange(events, calendarRange);
-  }
-  const rows = events.map((e) =>
-    `<div class="list-row"><div class="row-time">${esc(e.time)}</div><div class="row-main"><div class="row-title">${esc(e.title)}</div><div class="row-sub">${esc(e.subtitle || '')}</div></div></div>`
-  ).join('');
-  const emptyLabel = calendarRange === 'tomorrow' ? 'No upcoming events tomorrow.' : 'No upcoming events today.';
-  return controls + (rows || `<div class="row-sub">${emptyLabel}</div>`);
+  return controls + renderCalendarBubbleRange(events, calendarRange);
 }
 
 async function refreshCalendar() {
   try {
-    const events = await api(`/api/calendar/events?range=${encodeURIComponent(calendarRange)}`);
+    const rangeParam = calendarRange === 'day' ? 'today' : calendarRange;
+    const events = await api(`/api/calendar/events?range=${encodeURIComponent(rangeParam)}`);
     document.getElementById('calendar-list').innerHTML = renderCalendarRows(events);
     const title = document.getElementById('calendar-title');
     if (title) title.textContent = calendarRangeLabel(calendarRange);
@@ -1763,6 +2258,222 @@ let activeTtsAudio = null;
 let activeTtsObjectUrl = '';
 let voiceConversationUntil = 0;
 const VOICE_FOLLOWUP_WINDOW_MS = 25000;
+
+const EmailComposer = {
+  overlay: document.getElementById('compose-overlay'),
+  to: document.getElementById('compose-to'),
+  subject: document.getElementById('compose-subject'),
+  body: document.getElementById('compose-body'),
+  close() {
+    this.overlay?.classList.remove('open');
+  },
+  open(prefill = {}) {
+    if (this.to) this.to.value = prefill.to || '';
+    if (this.subject) this.subject.value = prefill.subject || '';
+    if (this.body) this.body.value = prefill.body || '';
+    this.overlay?.classList.add('open');
+    this.to?.focus();
+  },
+  values() {
+    return {
+      to: String(this.to?.value || '').trim(),
+      subject: String(this.subject?.value || '').trim() || 'Future message',
+      body: String(this.body?.value || '').trim(),
+    };
+  },
+};
+
+function parseEmailDraftPrompt(prompt) {
+  const raw = String(prompt || '').trim();
+  if (!raw) return null;
+  const lowered = raw.toLowerCase();
+  const wantsDraft = /(write|draft|compose|send)\s+(an?\s+)?(email|gmail|mail|message)\b/i.test(raw)
+    || (lowered.includes('email') && lowered.includes('future'));
+  if (!wantsDraft) return null;
+
+  const toMatch = raw.match(/\bto\s+([^,\n]+?)(?=\s+(?:subject|about|body|message)\b|$)/i);
+  const subjectMatch = raw.match(/\bsubject\s+(.+?)(?=\s+(?:body|message)\b|$)/i)
+    || raw.match(/\babout\s+(.+?)(?=\s+(?:body|message)\b|$)/i);
+  const bodyMatch = raw.match(/\b(?:body|message)\s+([\s\S]+)$/i);
+
+  return {
+    to: toMatch ? toMatch[1].trim() : '',
+    subject: subjectMatch ? subjectMatch[1].trim() : '',
+    body: bodyMatch ? bodyMatch[1].trim() : '',
+  };
+}
+
+async function sendComposedEmail() {
+  const draft = EmailComposer.values();
+  if (!draft.to) {
+    addMessage('Future', 'Add a recipient in the To field before sending.');
+    EmailComposer.to?.focus();
+    return;
+  }
+  if (!draft.body) {
+    addMessage('Future', 'Add a message body before sending the email.');
+    EmailComposer.body?.focus();
+    return;
+  }
+
+  try {
+    const response = await api('/api/gmail/send', {
+      method: 'POST',
+      body: JSON.stringify(draft),
+    });
+    EmailComposer.close();
+    addMessage('Future', `Email sent to ${response.to || draft.to} with subject "${response.subject || draft.subject}".`);
+    refreshGmail();
+    setServiceLive('gmail', true);
+  } catch (error) {
+    addMessage('Future', `Email not sent: ${error.message}`);
+    setServiceLive('gmail', false);
+  }
+}
+
+const chatImagePicker = document.getElementById('chat-image-picker');
+let pendingChatImageDataUrl = '';
+let pendingChatImageLabel = '';
+
+function parseImageGeneratePrompt(text) {
+  const raw = String(text || '').trim();
+  if (!raw) return '';
+  const lowered = raw.toLowerCase();
+  if (!(lowered.includes('image') && /(generate|create|make)/.test(lowered))) return '';
+
+  const explicit = raw.match(/(?:image\s+of|image\s+for|generate\s+me\s+an?\s+image\s+of|create\s+an?\s+image\s+of|make\s+an?\s+image\s+of)\s+(.+)$/i);
+  if (explicit && explicit[1]) return explicit[1].trim();
+
+  const trailing = raw
+    .replace(/^(?:can\s+you\s+)?(?:please\s+)?/i, '')
+    .replace(/\b(?:generate|create|make)\b/ig, '')
+    .replace(/\b(?:me|an?|the)\b/ig, '')
+    .replace(/\bimage\b/ig, '')
+    .replace(/\b(?:rq|real\s*quick|quickly)\b/ig, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return trailing;
+}
+
+async function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(new Error('Could not read image file'));
+    reader.readAsDataURL(file);
+  });
+}
+
+function parseImageEditPrompt(text) {
+  const raw = String(text || '').trim();
+  if (!raw) return '';
+  const match = raw.match(/^(?:please\s+)?(?:edit|modify|change|remix|restyle)\s+(?:this|that)?\s*(?:image|pic|picture)?\s*(?:to|so|into)?\s*(.+)$/i);
+  if (!match) return '';
+  return (match[1] || '').trim();
+}
+
+function looksLikeImageGenerateIntent(text) {
+  const lowered = String(text || '').toLowerCase();
+  return lowered.includes('image') && /(generate|create|make)/.test(lowered);
+}
+
+function attachPendingChatImage(dataUrl, sourceLabel = 'image') {
+  pendingChatImageDataUrl = String(dataUrl || '');
+  pendingChatImageLabel = sourceLabel;
+  if (!pendingChatImageDataUrl) return;
+  addMessage('Future', `Image attached from ${sourceLabel}. Say "modify this image to ..." or "analyze this image".`);
+}
+
+function addImageMessage(who, dataUrl, caption = '', downloadName = 'future-image.png') {
+  const shouldAutoScroll = isChatNearBottom();
+  const div = document.createElement('div');
+  div.className = 'msg' + (who === 'You' ? ' from-user' : '');
+  const time = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  div.innerHTML = `<div class="who">${esc(who)}</div><div class="msg-body"></div><div class="ts">${time}</div>`;
+
+  const body = div.querySelector('.msg-body');
+  const wrap = document.createElement('div');
+  wrap.className = 'bubble bubble-image-wrap';
+
+  if (caption) {
+    const cap = document.createElement('div');
+    cap.innerHTML = renderBubbleText(caption);
+    wrap.appendChild(cap);
+  }
+
+  const img = document.createElement('img');
+  img.className = 'bubble-image';
+  img.src = dataUrl;
+  img.alt = 'Generated image';
+  wrap.appendChild(img);
+
+  const actions = document.createElement('div');
+  actions.className = 'bubble-image-actions';
+  const dl = document.createElement('a');
+  dl.href = dataUrl;
+  dl.download = downloadName;
+  dl.textContent = 'Download';
+  actions.appendChild(dl);
+  wrap.appendChild(actions);
+
+  body.appendChild(wrap);
+  chatThread.appendChild(div);
+  if (shouldAutoScroll) chatThread.scrollTop = chatThread.scrollHeight;
+}
+
+async function generateImageInline(prompt) {
+  addMessage('Future', 'Creating image...');
+  try {
+    const result = await api('/api/images/generate', {
+      method: 'POST',
+      body: JSON.stringify({ prompt }),
+    });
+    const dataUrl = String(result.image_data_url || '').trim();
+    if (!dataUrl) throw new Error('No image returned');
+    addImageMessage('Future', dataUrl, `Generated image for: ${prompt}`, 'future-generated.png');
+  } catch (error) {
+    addMessage('Future', `Image generation failed: ${error.message}`);
+  }
+}
+
+async function editImageInline(prompt) {
+  if (!pendingChatImageDataUrl) {
+    addMessage('Future', 'Attach or paste an image first, then ask me to modify it.');
+    return;
+  }
+  addMessage('Future', 'Creating edited image...');
+  try {
+    const result = await api('/api/images/edit', {
+      method: 'POST',
+      body: JSON.stringify({ image_data_url: pendingChatImageDataUrl, prompt }),
+    });
+    const dataUrl = String(result.image_data_url || '').trim();
+    if (!dataUrl) throw new Error('No edited image returned');
+    addImageMessage('Future', dataUrl, `Edited image: ${prompt}`, 'future-edited.png');
+    pendingChatImageDataUrl = dataUrl;
+    pendingChatImageLabel = 'edited result';
+  } catch (error) {
+    addMessage('Future', `Image edit failed: ${error.message}`);
+  }
+}
+
+async function analyzePendingImageInline(question) {
+  if (!pendingChatImageDataUrl) {
+    addMessage('Future', 'Attach or paste an image first, then ask me to analyze it.');
+    return;
+  }
+  addMessage('Future', 'Analyzing image...');
+  try {
+    const result = await api('/api/images/analyze', {
+      method: 'POST',
+      body: JSON.stringify({ image_data_url: pendingChatImageDataUrl, question }),
+    });
+    const analysis = String(result.analysis || '').trim() || 'No analysis returned.';
+    addMessage('Future', analysis);
+  } catch (error) {
+    addMessage('Future', `Image analysis failed: ${error.message}`);
+  }
+}
 
 function detectVoiceModeCommand(text) {
   const lower = String(text || '').trim().toLowerCase();
@@ -2192,8 +2903,103 @@ chatForm.addEventListener('submit', (e) => {
   e.preventDefault();
   const val = chatInput.value.trim();
   if (!val) return;
+
+  const imagePrompt = parseImageGeneratePrompt(val);
+  if (imagePrompt) {
+    chatInput.value = '';
+    addMessage('You', val);
+    generateImageInline(imagePrompt);
+    return;
+  }
+  if (looksLikeImageGenerateIntent(val)) {
+    chatInput.value = '';
+    addMessage('You', val);
+    addMessage('Future', 'Tell me what image to generate, for example: "generate an image of a chrome drone over a neon city at night".');
+    return;
+  }
+
+  const imageEditPrompt = parseImageEditPrompt(val);
+  if (imageEditPrompt) {
+    chatInput.value = '';
+    addMessage('You', val);
+    editImageInline(imageEditPrompt);
+    return;
+  }
+  if (/\b(edit|modify|change|remix|restyle)\b/i.test(val) && pendingChatImageDataUrl) {
+    chatInput.value = '';
+    addMessage('You', val);
+    addMessage('Future', 'What change should I make to the attached image? Example: "modify this image to look cyberpunk with rain and neon lights".');
+    return;
+  }
+
+  if (/\b(analy[sz]e|describe|what(?:'s| is) in)\b.*\b(image|pic|picture|this)\b/i.test(val) && pendingChatImageDataUrl) {
+    chatInput.value = '';
+    addMessage('You', val);
+    analyzePendingImageInline(val);
+    return;
+  }
+
+  const draftIntent = parseEmailDraftPrompt(val);
+  if (draftIntent) {
+    chatInput.value = '';
+    addMessage('You', val);
+    EmailComposer.open(draftIntent);
+    addMessage('Future', 'Email draft opened. Edit recipient, subject, and message, then press Send Email.');
+    return;
+  }
+
   chatInput.value = '';
   sendChat(val);
+});
+
+document.getElementById('compose-cancel')?.addEventListener('click', () => EmailComposer.close());
+document.getElementById('compose-close')?.addEventListener('click', () => EmailComposer.close());
+document.getElementById('compose-send')?.addEventListener('click', () => sendComposedEmail());
+document.getElementById('compose-overlay')?.addEventListener('click', (event) => {
+  if (event.target.id === 'compose-overlay') EmailComposer.close();
+});
+
+document.getElementById('chat-image-open')?.addEventListener('click', () => {
+  chatImagePicker?.click();
+});
+
+chatImagePicker?.addEventListener('change', async (event) => {
+  const input = event.target;
+  const file = input?.files && input.files[0];
+  if (!file) return;
+  if (!String(file.type || '').startsWith('image/')) {
+    addMessage('Future', 'That file is not an image. Please pick an image file.');
+    return;
+  }
+  try {
+    const dataUrl = await readFileAsDataUrl(file);
+    addImageMessage('You', dataUrl, `Uploaded image: ${file.name || 'image'}`, file.name || 'uploaded-image.png');
+    attachPendingChatImage(dataUrl, file.name || 'uploaded file');
+  } catch (error) {
+    addMessage('Future', `Could not load image: ${error.message}`);
+  } finally {
+    input.value = '';
+  }
+});
+
+document.addEventListener('paste', async (event) => {
+  const items = event.clipboardData?.items || [];
+  const imageItem = Array.from(items).find((item) => String(item.type || '').startsWith('image/'));
+  if (!imageItem) return;
+
+  const active = document.activeElement;
+  if (active !== chatInput) return;
+
+  event.preventDefault();
+  const file = imageItem.getAsFile();
+  if (!file) return;
+  try {
+    const dataUrl = await readFileAsDataUrl(file);
+    addImageMessage('You', dataUrl, 'Pasted image', 'pasted-image.png');
+    attachPendingChatImage(dataUrl, 'clipboard');
+  } catch (error) {
+    addMessage('Future', `Could not read pasted image: ${error.message}`);
+  }
 });
 
 if (chatMicLock) {
@@ -2205,7 +3011,7 @@ if (chatMicLock) {
 document.addEventListener('click', (e) => {
   const btn = e.target.closest('.calendar-range-btn');
   if (!btn) return;
-  const range = btn.getAttribute('data-range') || 'today';
+  const range = btn.getAttribute('data-range') || 'day';
   calendarRange = range;
   refreshCalendar();
 });
@@ -2214,6 +3020,44 @@ document.querySelectorAll('.nav-item').forEach((btn) => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.nav-item').forEach((b) => b.classList.remove('active'));
     btn.classList.add('active');
+    const target = document.querySelector(`.compact-item[data-mobile-view="${btn.dataset.view}"]`);
+    if (target) {
+      target.open = true;
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else if (btn.dataset.view === 'chat') {
+      document.getElementById('chat-input')?.focus({ preventScroll: true });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  });
+});
+
+document.getElementById('map-open')?.addEventListener('click', () => {
+  const address = document.getElementById('map-addr')?.textContent.trim() || 'Home Workshop';
+  window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`, '_blank', 'noopener');
+});
+
+const connectRoutes = {
+  spotify: '/api/connect/spotify',
+  'google-calendar': '/api/connect/google-calendar',
+  fusion360: '/api/connect/fusion360',
+};
+
+document.querySelectorAll('.connect-btn[data-connect-service]').forEach((button) => {
+  button.addEventListener('click', async () => {
+    const route = connectRoutes[button.dataset.connectService];
+    if (!route) return;
+    const originalLabel = button.textContent;
+    button.disabled = true;
+    button.textContent = 'Opening...';
+    try {
+      const result = await api(route, { method: 'POST' });
+      if (!result.auth_url) throw new Error('No authorization URL returned');
+      window.location.href = result.auth_url;
+    } catch (error) {
+      button.disabled = false;
+      button.textContent = originalLabel;
+      alert(`Connection unavailable: ${error.message}`);
+    }
   });
 });
 
@@ -2223,8 +3067,10 @@ const Settings = {
   save() {
     const base = document.getElementById('settings-api-base').value.trim();
     const poll = parseInt(document.getElementById('settings-poll-interval').value, 10);
-    if (base) CONFIG.API_BASE = base.replace(/\/$/, '');
+    if (base) CONFIG.API_BASE = normalizeApiBase(base);
     if (poll && poll > 0) CONFIG.POLL_INTERVAL_MS = poll * 1000;
+    const apiBaseInputNode = document.getElementById('settings-api-base');
+    if (apiBaseInputNode) apiBaseInputNode.value = CONFIG.API_BASE;
     Settings.close();
     refreshAll();
   },
@@ -2279,20 +3125,23 @@ function initCompactDropdownLayout() {
   container.className = 'compact-accordions';
 
   const modules = [
-    { title: 'Spotify', node: panelFromTag('spotify-tag'), tagId: 'spotify-tag', open: true },
-    { title: 'Calendar', node: panelFromTag('calendar-tag'), tagId: 'calendar-tag', open: false },
-    { title: 'Gmail', node: panelFromTag('gmail-tag'), tagId: 'gmail-tag', open: false },
-    { title: 'System Performance', node: panelFromTag('perf-tag'), tagId: 'perf-tag', open: false },
-    { title: 'Stocks', node: panelFromTag('stocks-tag'), tagId: 'stocks-tag', open: false },
-    { title: 'Fusion 360', node: panelFromTag('fusion-tag'), tagId: 'fusion-tag', open: false },
-    { title: 'Slicer', node: panelFromTag('slicer-tag'), tagId: 'slicer-tag', open: false },
-    { title: 'Recent Downloads', node: panelFromTag('files-tag'), tagId: 'files-tag', open: false },
-    { title: 'Maps', node: panelFromTag('maps-tag'), tagId: 'maps-tag', open: false },
+    { title: 'Spotify', node: panelFromTag('spotify-tag'), tagId: 'spotify-tag', view: 'spotify', open: true },
+    { title: 'Calendar', node: panelFromTag('calendar-tag'), tagId: 'calendar-tag', view: 'calendar', open: false },
+    { title: 'Gmail', node: panelFromTag('gmail-tag'), tagId: 'gmail-tag', view: 'gmail', open: false },
+    { title: 'System Performance', node: panelFromTag('perf-tag'), tagId: 'perf-tag', view: 'system', open: false },
+    { title: 'Stocks', node: panelFromTag('stocks-tag'), tagId: 'stocks-tag', view: 'stocks', open: false },
+    { title: 'Fusion 360', node: panelFromTag('fusion-tag'), tagId: 'fusion-tag', view: 'fusion', open: false },
+    { title: 'Slicer', node: panelFromTag('slicer-tag'), tagId: 'slicer-tag', view: 'slicer', open: false },
+    { title: 'Recent Downloads', node: panelFromTag('files-tag'), tagId: 'files-tag', view: 'files', open: false },
+    { title: 'Maps', node: panelFromTag('maps-tag'), tagId: 'maps-tag', view: 'maps', open: false },
   ];
 
   for (const moduleDef of modules) {
     const item = createCompactItem(moduleDef.title, moduleDef.node, moduleDef.tagId, moduleDef.open);
-    if (item) container.appendChild(item);
+    if (item) {
+      item.dataset.mobileView = moduleDef.view || '';
+      container.appendChild(item);
+    }
   }
 
   chatFormNode.insertAdjacentElement('afterend', container);
@@ -2310,9 +3159,110 @@ function refreshAll() {
   refreshSlicer();
 }
 
-refreshAll();
+let futureUnlocked = false;
+
+function setAccessGate(unlocked) {
+  futureUnlocked = unlocked;
+  document.getElementById('access-gate')?.classList.toggle('unlocked', unlocked);
+  if (!unlocked) document.getElementById('access-password')?.focus();
+}
+
+async function checkAccessStatus() {
+  try {
+    const response = await fetch(CONFIG.API_BASE + '/api/auth/status');
+    const payload = await response.json();
+    setAccessGate(payload.unlocked === true);
+    if (payload.unlocked) refreshAll();
+  } catch (_) {
+    setAccessGate(false);
+    document.getElementById('access-error').textContent = 'Future server is unavailable.';
+  }
+}
+
+document.getElementById('access-form')?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const input = document.getElementById('access-password');
+  const button = event.currentTarget.querySelector('button');
+  const error = document.getElementById('access-error');
+  button.disabled = true;
+  error.textContent = 'Checking...';
+  try {
+    const response = await fetch(CONFIG.API_BASE + '/api/auth/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: input.value }),
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.detail || 'Access denied');
+    input.value = '';
+    error.textContent = '';
+    setAccessGate(true);
+    refreshAll();
+  } catch (caught) {
+    input.value = '';
+    error.textContent = caught.message;
+    input.focus();
+  } finally {
+    button.disabled = false;
+  }
+});
+
 initCompactDropdownLayout();
-setInterval(refreshAll, CONFIG.POLL_INTERVAL_MS);
+checkAccessStatus();
+setInterval(() => {
+  if (futureUnlocked) refreshAll();
+}, CONFIG.POLL_INTERVAL_MS);
+setInterval(async () => {
+  try {
+    const response = await fetch(CONFIG.API_BASE + '/api/auth/status');
+    const payload = await response.json();
+    if (!payload.unlocked && futureUnlocked) {
+      setAccessGate(false);
+      document.getElementById('access-error').textContent = 'Session expired. Enter your password again.';
+    }
+  } catch (_) {
+    // Keep the current lock state while a temporary network interruption recovers.
+  }
+}, 60000);
+
+let deferredInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', (event) => {
+  event.preventDefault();
+  deferredInstallPrompt = event;
+  const installButton = document.getElementById('install-app');
+  if (installButton) installButton.style.display = 'flex';
+});
+
+document.getElementById('install-app')?.addEventListener('click', async () => {
+  if (!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  await deferredInstallPrompt.userChoice;
+  deferredInstallPrompt = null;
+  document.getElementById('install-app').style.display = 'none';
+});
+
+document.querySelectorAll('.mobile-dock button').forEach((button) => {
+  button.addEventListener('click', () => {
+    document.querySelectorAll('.mobile-dock button').forEach((item) => item.classList.remove('active'));
+    button.classList.add('active');
+    const target = button.dataset.mobileTarget;
+    if (target === 'chat-thread') {
+      document.getElementById('chat-input')?.focus({ preventScroll: true });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    const tag = document.getElementById(target);
+    const accordion = tag?.closest('.compact-item');
+    if (accordion) {
+      accordion.open = true;
+      accordion.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  });
+});
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+}
 </script>
 
 </body>
