@@ -1010,6 +1010,58 @@ def _anthropic_reply(messages, model_name: str, max_tokens: int = 500) -> Option
     return _clean_model_text("\n".join(pieces))
 
 
+def organize_notes_text(raw_text: str, existing_content: str = "") -> str:
+    """Turn raw dictated/spoken text into organized, summarized notes (headings + bullets)."""
+    raw_text = (raw_text or "").strip()
+    if not raw_text:
+        return existing_content or ""
+
+    instructions = (
+        "You are organizing spoken notes into clean written notes. "
+        "Merge the new spoken material into the existing notes below, keeping everything still relevant. "
+        "Summarize rambling speech into concise bullet points, group related ideas under short headings, "
+        "fix obvious transcription errors, and drop filler words. "
+        "Return only the final plain-text notes (markdown-style headings and bullets are fine), no commentary."
+    )
+    user_content = (
+        f"Existing notes:\n{existing_content or '(empty)'}\n\n"
+        f"New spoken material to add:\n{raw_text}"
+    )
+    messages = [
+        {"role": "system", "content": instructions},
+        {"role": "user", "content": user_content},
+    ]
+
+    model_candidates = []
+    for candidate in [PRIMARY_MODEL, BACKUP_MODEL, ANTHROPIC_MODEL]:
+        model_name = (candidate or "").strip()
+        if model_name and model_name not in model_candidates:
+            model_candidates.append(model_name)
+
+    for model_name in model_candidates:
+        try:
+            if _is_anthropic_model(model_name):
+                cleaned = _anthropic_reply(messages, model_name=model_name, max_tokens=1200)
+            elif _client:
+                response = _client.chat.completions.create(
+                    model=model_name,
+                    messages=messages,
+                    max_completion_tokens=1200,
+                )
+                text = response.choices[0].message.content
+                cleaned = _clean_model_text(text or "") if text else None
+            else:
+                cleaned = None
+            if cleaned:
+                return cleaned
+        except Exception as exc:
+            print(f"Notes organize error with model {model_name}: {exc}")
+
+    # No model available: fall back to appending the raw text as-is.
+    joined = f"{existing_content}\n\n{raw_text}" if existing_content else raw_text
+    return joined.strip()
+
+
 def _handle_local_intents(query: str) -> Optional[str]:
     q = query.lower()
 

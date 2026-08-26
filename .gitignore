@@ -1,4 +1,6 @@
-# Python
+data/chat_sessions.sqlite3
+data/chat_sessions.sqlite3-shm
+data/chat_sessions.sqlite3-wal# Python
 __pycache__/
 *.py[cod]
 *.pyo

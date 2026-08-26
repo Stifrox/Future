@@ -219,6 +219,11 @@ def upload_gcode(gcode_path: str, start_print: bool = False) -> Dict[str, object
 
 def fetch_print_status() -> Dict[str, object]:
     backend = _printer_backend()
+
+    if backend == "anycubic_lan":
+        from tools.anycubic_lan import fetch_lan_print_status
+        return fetch_lan_print_status()
+
     base = _printer_base_url()
     headers = _printer_headers()
 
@@ -294,7 +299,7 @@ def fetch_print_status() -> Dict[str, object]:
             "backend": "moonraker",
         }
 
-    raise RuntimeError("ANYCUBIC_BACKEND must be 'octoprint' or 'moonraker'.")
+    raise RuntimeError("ANYCUBIC_BACKEND must be 'octoprint', 'moonraker', or 'anycubic_lan'.")
 
 
 def slice_and_send(

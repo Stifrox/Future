@@ -9,3 +9,7 @@ python-dotenv
 fastapi
 uvicorn
 psutil
+anycubic-cloud-api
+paho-mqtt
+aiohttp
+cryptography

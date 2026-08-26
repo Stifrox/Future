@@ -57,6 +57,7 @@ from tools.integrations import (
     spotify_play,
     spotify_previous,
 )
+from chat_sessions import ChatSessionStore
 
 try:
     import psutil
@@ -108,6 +109,7 @@ else:
 trader = AutopilotPaperTrader() if AutopilotPaperTrader else None
 CHAT_CONTEXT_MAX_LINES = int(os.getenv("FUTURE_CHAT_CONTEXT_LINES", "20"))
 CHAT_CONTEXT_LINES = deque(maxlen=max(2, CHAT_CONTEXT_MAX_LINES))
+CHAT_SESSIONS = ChatSessionStore()
 AUTODESK_TOKEN_FILE = Path("data/autodesk_tokens.json")
 AUTODESK_AUTH_URL = "https://developer.api.autodesk.com/authentication/v2/authorize"
 AUTODESK_TOKEN_URL = "https://developer.api.autodesk.com/authentication/v2/token"
@@ -123,6 +125,20 @@ class SpotifyControlRequest(BaseModel):
 
 class ChatMessageRequest(BaseModel):
     message: str
+    session_id: Optional[str] = None
+
+
+class ChatSessionCreateRequest(BaseModel):
+    title: str = "New conversation"
+    description: str = ""
+    tags: List[str] = []
+
+
+class ChatSessionUpdateRequest(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    tags: Optional[List[str]] = None
+    starred: Optional[bool] = None
 
 
 class GmailSendRequest(BaseModel):
@@ -173,6 +189,22 @@ class FileWriteRequest(BaseModel):
     overwrite: bool = False
 
 
+class NoteCreateRequest(BaseModel):
+    title: str
+    content: str = ""
+
+
+class NoteSaveRequest(BaseModel):
+    content: str
+    title: Optional[str] = None
+
+
+class NoteOrganizeRequest(BaseModel):
+    raw_text: str
+    existing_content: str = ""
+    note_id: Optional[str] = None
+
+
 class FusionOpenRequest(BaseModel):
     file_name: str
     open_in_browser: bool = True
@@ -192,6 +224,8 @@ def _safe_float(value, default=0.0):
     """Safely convert value to float with fallback default."""
     try:
         return float(value)
+    except HTTPException:
+        raise
     except Exception:
         return default
 
@@ -1408,6 +1442,58 @@ def files_write(payload: FileWriteRequest) -> Dict[str, object]:
     }
 
 
+@app.get("/api/notes")
+def notes_list() -> List[Dict]:
+    from tools.notes import list_notes
+    return list_notes()
+
+
+@app.get("/api/notes/search")
+def notes_search(q: str = Query(default="", min_length=1)) -> List[Dict]:
+    from tools.notes import search_notes
+    return search_notes(q)
+
+
+@app.get("/api/notes/{note_id}")
+def notes_get(note_id: str) -> Dict:
+    from tools.notes import get_note
+    note = get_note(note_id)
+    if not note:
+        raise HTTPException(status_code=404, detail="Note not found")
+    return note
+
+
+@app.post("/api/notes")
+def notes_create(payload: NoteCreateRequest) -> Dict:
+    from tools.notes import create_note
+    return create_note(payload.title, payload.content)
+
+
+@app.put("/api/notes/{note_id}")
+def notes_save(note_id: str, payload: NoteSaveRequest) -> Dict:
+    from tools.notes import save_note
+    note = save_note(note_id, payload.content, payload.title)
+    if not note:
+        raise HTTPException(status_code=404, detail="Note not found")
+    return note
+
+
+@app.delete("/api/notes/{note_id}")
+def notes_delete(note_id: str) -> Dict[str, bool]:
+    from tools.notes import delete_note
+    deleted = delete_note(note_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Note not found")
+    return {"deleted": True}
+
+
+@app.post("/api/notes/organize")
+def notes_organize(payload: NoteOrganizeRequest) -> Dict[str, str]:
+    from webtools import organize_notes_text
+    organized = organize_notes_text(payload.raw_text, payload.existing_content)
+    return {"content": organized}
+
+
 @app.get("/api/maps/location")
 def maps_location() -> Dict[str, object]:
     return {
@@ -1419,24 +1505,68 @@ def maps_location() -> Dict[str, object]:
 
 
 @app.post("/api/chat/message")
-def chat_message(payload: ChatMessageRequest) -> Dict[str, str]:
+def chat_message(payload: ChatMessageRequest) -> Dict[str, object]:
     message = payload.message.strip()
     if not message:
         raise HTTPException(status_code=400, detail="Message is required")
 
     try:
-        recent_context = list(CHAT_CONTEXT_LINES)
+        session = CHAT_SESSIONS.get(payload.session_id) if payload.session_id else None
+        if payload.session_id and not session:
+            raise HTTPException(status_code=404, detail="Chat session not found")
+        if not session:
+            session = CHAT_SESSIONS.create()
+        recent_context = session["messages"][-CHAT_CONTEXT_MAX_LINES:] or list(CHAT_CONTEXT_LINES)
         reply = _chat_reply(message, recent_context=recent_context)
         normalized = _normalize_chat_reply(reply)
+        session = CHAT_SESSIONS.add_messages(
+            session["id"], [{"role": "user", "content": message}, {"role": "assistant", "content": normalized}]
+        )
+        CHAT_SESSIONS.prune()
         CHAT_CONTEXT_LINES.append({"role": "user", "content": message})
         CHAT_CONTEXT_LINES.append({"role": "assistant", "content": normalized})
-        return {"reply": normalized}
+        return {"reply": normalized, "session_id": session["id"], "title": session["title"]}
+    except HTTPException:
+        raise
     except Exception:
         fallback = handle_gmail_command(message)
         normalized = _normalize_chat_reply(fallback)
         CHAT_CONTEXT_LINES.append({"role": "user", "content": message})
         CHAT_CONTEXT_LINES.append({"role": "assistant", "content": normalized})
-        return {"reply": normalized}
+        session = CHAT_SESSIONS.get(payload.session_id) if payload.session_id else None
+        if not session:
+            session = CHAT_SESSIONS.create()
+        session = CHAT_SESSIONS.add_messages(
+            session["id"], [{"role": "user", "content": message}, {"role": "assistant", "content": normalized}]
+        )
+        CHAT_SESSIONS.prune()
+        return {"reply": normalized, "session_id": session["id"], "title": session["title"]}
+
+
+@app.post("/api/chat/sessions")
+def create_chat_session(payload: ChatSessionCreateRequest) -> Dict[str, object]:
+    return CHAT_SESSIONS.create(payload.title, payload.description, payload.tags)
+
+
+@app.get("/api/chat/sessions")
+def list_chat_sessions(search: str = Query(default="")) -> List[Dict[str, object]]:
+    return CHAT_SESSIONS.list(search)
+
+
+@app.get("/api/chat/sessions/{session_id}")
+def get_chat_session(session_id: str) -> Dict[str, object]:
+    session = CHAT_SESSIONS.get(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Chat session not found")
+    return session
+
+
+@app.patch("/api/chat/sessions/{session_id}")
+def update_chat_session(session_id: str, payload: ChatSessionUpdateRequest) -> Dict[str, object]:
+    session = CHAT_SESSIONS.update(session_id, payload.title, payload.description, payload.tags, payload.starred)
+    if not session:
+        raise HTTPException(status_code=404, detail="Chat session not found")
+    return session
 
 
 @app.post("/api/self-update/plan")

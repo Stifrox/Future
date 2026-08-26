@@ -381,6 +381,8 @@
     padding-bottom:12px; margin-bottom:12px;
     border-bottom:1px solid var(--border);
   }
+  .chat-header-actions{ display:flex; align-items:center; gap:8px; }
+  #recent-chats{ max-width:170px; min-width:120px; height:30px; border:1px solid var(--border); background:var(--bg-2); color:var(--text-1); padding:0 7px; font:inherit; font-size:11px; }
   .chat-header h1{
     font-family:var(--font-label);
     font-weight:500;
@@ -808,6 +810,152 @@
     border-top:1px solid var(--border);
     padding:14px 15px;
   }
+
+  .notes-overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(5,6,7,0.62);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    z-index:1200;
+  }
+  .notes-overlay.open{ display:flex; }
+  .notes-modal{
+    width:680px;
+    max-width:94vw;
+    height:600px;
+    max-height:88vh;
+    display:flex;
+    flex-direction:column;
+    background:var(--bg-panel);
+    border:1px solid var(--border-bright);
+    border-radius:var(--radius-m);
+    box-shadow:0 22px 64px rgba(0,0,0,0.52);
+    overflow:hidden;
+  }
+  .notes-head{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:14px 15px;
+    border-bottom:1px solid var(--border);
+  }
+  .notes-title-input{
+    flex:1;
+    background:var(--bg-inset);
+    border:1px solid var(--border);
+    border-radius:var(--radius-s);
+    padding:9px 11px;
+    color:var(--text-1);
+    font-size:14px;
+    font-family:var(--font-mono);
+    font-weight:600;
+    outline:none;
+  }
+  .notes-title-input:focus{ border-color:var(--steel-dim); }
+  .notes-mic-btn{
+    width:32px;
+    height:32px;
+    flex-shrink:0;
+    border-radius:50%;
+    border:1px solid var(--border);
+    background:var(--bg-inset);
+    color:var(--text-2);
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .notes-mic-btn.active{
+    background:#ef4444;
+    border-color:#ef4444;
+    color:#fff;
+  }
+  .notes-status{
+    font-size:11px;
+    color:var(--text-3);
+    padding:0 15px 8px;
+  }
+  .notes-body-wrap{
+    flex:1;
+    display:flex;
+    min-height:0;
+  }
+  .notes-body{
+    flex:1;
+    min-width:0;
+    padding:0 15px 15px;
+    display:flex;
+  }
+  .notes-textarea{
+    flex:1;
+    width:100%;
+    resize:none;
+    background:var(--bg-inset);
+    border:1px solid var(--border);
+    border-radius:var(--radius-s);
+    padding:10px 11px;
+    outline:none;
+    color:var(--text-1);
+    font-size:12.5px;
+    font-family:var(--font-mono);
+    line-height:1.6;
+  }
+  .notes-textarea:focus{ border-color:var(--steel-dim); }
+  .notes-actions{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:10px;
+    border-top:1px solid var(--border);
+    padding:14px 15px;
+  }
+  .notes-actions .right{ display:flex; gap:10px; }
+  .notes-list-panel{
+    display:none;
+    width:220px;
+    flex-shrink:0;
+    border-right:1px solid var(--border);
+    overflow-y:auto;
+    padding:8px;
+  }
+  .notes-modal.with-list .notes-list-panel{ display:block; }
+  .notes-list-item{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:6px;
+    padding:9px 10px;
+    border-radius:var(--radius-s);
+    cursor:pointer;
+    color:var(--text-2);
+  }
+  .notes-list-item:hover{ background:var(--bg-panel-raised); color:var(--text-1); }
+  .notes-list-item.active{ background:var(--steel-soft); color:var(--steel); }
+  .notes-list-item-title{ font-size:12px; font-weight:600; }
+  .notes-list-item-meta{ font-size:10px; color:var(--text-3); margin-top:3px; }
+  .notes-list-item-del{
+    flex-shrink:0;
+    width:20px; height:20px;
+    display:flex; align-items:center; justify-content:center;
+    color:var(--text-3);
+    border-radius:4px;
+  }
+  .notes-list-item-del:hover{ color:#ef4444; background:rgba(239,68,68,0.12); }
+  .notes-list-empty{ font-size:11px; color:var(--text-3); padding:10px; }
+  .notes-new-btn{
+    display:block;
+    width:100%;
+    margin-bottom:8px;
+    padding:9px 10px;
+    font-family:var(--font-label); font-size:10px; letter-spacing:1px;
+    border:1px solid var(--border-bright);
+    border-radius:var(--radius-s);
+    background:var(--bg-panel-raised); color:var(--text-2);
+    cursor:pointer;
+  }
+  .notes-new-btn:hover{ border-color:var(--steel-dim); color:var(--steel); }
 
   .image-overlay{
     position:fixed;
@@ -1414,6 +1562,10 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 20 3 17V4l6 3m0 13 6-3m-6 3V7m6 10 6 3V7l-6-3m0 13V4m0 3-6-3"/></svg>
           Maps
         </button>
+        <button class="nav-item" data-view="notes" id="notes-nav-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 12h6M9 16h6M9 8h3"/><path d="M7 3h7l5 5v13a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/></svg>
+          Notes
+        </button>
       </nav>
 
       <!-- SPOTIFY WIDGET -->
@@ -1495,7 +1647,13 @@
           <h1>Future Console</h1>
           <div class="sub">Ask Future about your schedule, prints, files, or anything</div>
         </div>
-        <div class="chat-status"><span class="dot demo" id="chat-status-dot"></span><span id="chat-status-label">Chat ready</span></div>
+        <div class="chat-header-actions">
+          <select id="recent-chats" title="Recent chats" aria-label="Recent chats">
+            <option value="">Recent chats</option>
+          </select>
+          <button type="button" class="icon-btn" id="new-chat" title="New chat" aria-label="New chat">+</button>
+          <div class="chat-status"><span class="dot demo" id="chat-status-dot"></span><span id="chat-status-label">Chat ready</span></div>
+        </div>
       </div>
 
       <div class="chat-thread" id="chat-thread">
@@ -1747,6 +1905,43 @@
     </div>
   </div>
 </div>
+
+<!-- ================= NOTES MODAL ================= -->
+<div class="notes-overlay" id="notes-overlay">
+  <div class="notes-modal">
+    <div class="notes-head">
+      <button class="icon-btn" id="notes-list-toggle" style="width:28px;height:28px;" title="My Notes">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+      </button>
+      <input type="text" id="notes-title-input" class="notes-title-input" placeholder="Note title...">
+      <button class="notes-mic-btn" id="notes-bullet-btn" title="Insert bullet point" style="font-family:var(--font-mono); font-size:16px;">•</button>
+      <button class="notes-mic-btn" id="notes-mic-btn" title="Start dictation">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v4M8 23h8"/></svg>
+      </button>
+      <button class="icon-btn" id="notes-close" style="width:28px;height:28px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="notes-status" id="notes-status">&nbsp;</div>
+    <div class="notes-body-wrap">
+      <div class="notes-list-panel" id="notes-list-panel">
+        <button class="notes-new-btn" id="notes-new-btn">+ New Note</button>
+        <div id="notes-list-items"></div>
+      </div>
+      <div class="notes-body">
+        <textarea id="notes-textarea" class="notes-textarea" placeholder="Start typing, use the &#8226; button or bullet lists for key points..."></textarea>
+      </div>
+    </div>
+    <div class="notes-note" style="font-size:11px;color:var(--text-3);padding:0 15px 8px;">Saves to Future's memory and to your computer.</div>
+    <div class="notes-actions">
+      <button class="btn" id="notes-discard">Discard</button>
+      <div class="right">
+        <button class="btn primary" id="notes-save-exit">Save Note</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 
 <!-- ================= IMAGE STUDIO MODAL ================= -->
 <div class="image-overlay" id="image-overlay">
@@ -2247,6 +2442,8 @@ async function refreshSlicer() {
 const chatForm = document.getElementById('chat-form');
 const chatInput = document.getElementById('chat-input');
 const chatThread = document.getElementById('chat-thread');
+const recentChats = document.getElementById('recent-chats');
+let activeChatSessionId = null;
 const chatMicLock = document.getElementById('chat-mic-lock');
 const codeBlockStore = new Map();
 let codeBlockCounter = 0;
@@ -2333,6 +2530,325 @@ async function sendComposedEmail() {
 
 const chatImagePicker = document.getElementById('chat-image-picker');
 let pendingChatImageDataUrl = '';
+
+const NotesApp = {
+  overlay: document.getElementById('notes-overlay'),
+  titleInput: document.getElementById('notes-title-input'),
+  textarea: document.getElementById('notes-textarea'),
+  statusEl: document.getElementById('notes-status'),
+  micBtn: document.getElementById('notes-mic-btn'),
+  bulletBtn: document.getElementById('notes-bullet-btn'),
+  listToggleBtn: document.getElementById('notes-list-toggle'),
+  listPanel: document.getElementById('notes-list-panel'),
+  listItemsEl: document.getElementById('notes-list-items'),
+  modalEl: document.querySelector('.notes-modal'),
+  currentId: null,
+  awaitingTitleFor: null,
+  dictationActive: false,
+  recognizer: null,
+  dictationBuffer: '',
+  silenceTimer: null,
+
+  setStatus(text) {
+    if (this.statusEl) this.statusEl.textContent = text || '\u00a0';
+  },
+  open({ id = null, title = '', content = '' } = {}) {
+    this.currentId = id;
+    if (this.titleInput) this.titleInput.value = title;
+    if (this.textarea) this.textarea.value = content;
+    this.overlay?.classList.add('open');
+    this.setStatus(id ? 'Resumed note' : 'New note');
+    this._highlightActiveInList();
+    if (!content && this.titleInput) {
+      this.titleInput.focus();
+    } else if (this.textarea) {
+      this.textarea.focus();
+      this.textarea.selectionStart = this.textarea.selectionEnd = this.textarea.value.length;
+    }
+  },
+  async openBrowser() {
+    this.overlay?.classList.add('open');
+    this.modalEl?.classList.add('with-list');
+    await this.refreshList();
+    if (!this.currentId && this.titleInput && !this.titleInput.value) {
+      this.setStatus('Pick a note, or start a new one');
+    }
+  },
+  close() {
+    this.stopDictation();
+    this.awaitingTitleFor = null;
+    this.overlay?.classList.remove('open');
+    this.modalEl?.classList.remove('with-list');
+  },
+  toggleList() {
+    const willOpen = !this.modalEl?.classList.contains('with-list');
+    this.modalEl?.classList.toggle('with-list', willOpen);
+    if (willOpen) this.refreshList();
+  },
+  async refreshList() {
+    if (!this.listItemsEl) return;
+    try {
+      const notes = await api('/api/notes');
+      if (!notes.length) {
+        this.listItemsEl.innerHTML = '<div class="notes-list-empty">No saved notes yet.</div>';
+        return;
+      }
+      this.listItemsEl.innerHTML = notes.map((n) => {
+        const updated = n.updated ? new Date(n.updated).toLocaleString() : '';
+        return `<div class="notes-list-item${n.id === this.currentId ? ' active' : ''}" data-id="${n.id}">
+          <div>
+            <div class="notes-list-item-title">${escapeHtml(n.title || 'Untitled Note')}</div>
+            <div class="notes-list-item-meta">${escapeHtml(updated)}</div>
+          </div>
+          <div class="notes-list-item-del" data-del-id="${n.id}" title="Delete note">&times;</div>
+        </div>`;
+      }).join('');
+      this.listItemsEl.querySelectorAll('.notes-list-item').forEach((el) => {
+        el.addEventListener('click', (e) => {
+          if (e.target.closest('.notes-list-item-del')) return;
+          this._openFromList(el.dataset.id);
+        });
+      });
+      this.listItemsEl.querySelectorAll('.notes-list-item-del').forEach((el) => {
+        el.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const id = el.dataset.delId;
+          try {
+            await api(`/api/notes/${encodeURIComponent(id)}`, { method: 'DELETE' });
+            if (this.currentId === id) {
+              this.currentId = null;
+              if (this.titleInput) this.titleInput.value = '';
+              if (this.textarea) this.textarea.value = '';
+              this.setStatus('Note deleted');
+            }
+            this.refreshList();
+          } catch (error) {
+            addMessage('Future', `Could not delete note: ${error.message}`);
+          }
+        });
+      });
+    } catch (error) {
+      this.listItemsEl.innerHTML = '<div class="notes-list-empty">Could not load notes.</div>';
+    }
+  },
+  async _openFromList(id) {
+    try {
+      const full = await api(`/api/notes/${encodeURIComponent(id)}`);
+      this.currentId = full.id;
+      if (this.titleInput) this.titleInput.value = full.title || '';
+      if (this.textarea) this.textarea.value = full.content || '';
+      this.setStatus('Resumed note');
+      this._highlightActiveInList();
+      this.textarea?.focus();
+    } catch (error) {
+      addMessage('Future', `Could not open note: ${error.message}`);
+    }
+  },
+  startNew() {
+    this.currentId = null;
+    if (this.titleInput) this.titleInput.value = '';
+    if (this.textarea) this.textarea.value = '';
+    this.setStatus('New note');
+    this._highlightActiveInList();
+    this.titleInput?.focus();
+  },
+  _highlightActiveInList() {
+    this.listItemsEl?.querySelectorAll('.notes-list-item').forEach((el) => {
+      el.classList.toggle('active', el.dataset.id === this.currentId);
+    });
+  },
+  insertBullet() {
+    if (!this.textarea) return;
+    const el = this.textarea;
+    el.focus();
+    const value = el.value;
+    const pos = el.selectionStart;
+    const lineStart = value.lastIndexOf('\n', pos - 1) + 1;
+    const atLineStart = pos === lineStart;
+    const prefix = atLineStart ? '\u2022 ' : '\n\u2022 ';
+    el.setRangeText(prefix, pos, el.selectionEnd, 'end');
+  },
+  handleEnterKey(e) {
+    const el = this.textarea;
+    if (!el || e.key !== 'Enter') return;
+    const value = el.value;
+    const pos = el.selectionStart;
+    const lineStart = value.lastIndexOf('\n', pos - 1) + 1;
+    const currentLine = value.slice(lineStart, pos);
+    const bulletMatch = currentLine.match(/^(\s*)\u2022 (.*)$/);
+    if (!bulletMatch) return;
+    e.preventDefault();
+    const [, indent, rest] = bulletMatch;
+    if (rest.trim() === '') {
+      el.setRangeText('\n', lineStart, pos, 'end');
+    } else {
+      el.setRangeText(`\n${indent}\u2022 `, pos, el.selectionEnd, 'end');
+    }
+  },
+  async saveAndExit() {
+    const title = String(this.titleInput?.value || '').trim() || 'Untitled Note';
+    const content = String(this.textarea?.value || '');
+    try {
+      if (this.currentId) {
+        await api(`/api/notes/${encodeURIComponent(this.currentId)}`, {
+          method: 'PUT',
+          body: JSON.stringify({ content, title }),
+        });
+      } else {
+        const created = await api('/api/notes', { method: 'POST', body: JSON.stringify({ title, content }) });
+        this.currentId = created.id;
+      }
+      addMessage('Future', `Saved "${title}".`);
+      await this.refreshList();
+    } catch (error) {
+      addMessage('Future', `Could not save note: ${error.message}`);
+      return;
+    }
+    this.close();
+  },
+  discardAndExit() {
+    this.close();
+  },
+  toggleDictation() {
+    if (this.dictationActive) this.stopDictation();
+    else this.startDictation();
+  },
+  startDictation() {
+    if (!hasSpeechRecognition()) {
+      addMessage('Future', 'Dictation is not supported in this browser.');
+      return;
+    }
+    if (!this.recognizer) this.recognizer = this._createRecognizer();
+    this.dictationActive = true;
+    this.micBtn?.classList.add('active');
+    this.setStatus('Listening... speak your notes.');
+    try { this.recognizer.start(); } catch (e) {}
+  },
+  stopDictation() {
+    if (!this.dictationActive && !this.recognizer) return;
+    this.dictationActive = false;
+    this.micBtn?.classList.remove('active');
+    if (this.recognizer) { try { this.recognizer.stop(); } catch (e) {} }
+    if (this.silenceTimer) { clearTimeout(this.silenceTimer); this.silenceTimer = null; }
+    this.setStatus('\u00a0');
+  },
+  _createRecognizer() {
+    const SpeechCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const rec = new SpeechCtor();
+    rec.continuous = true;
+    rec.interimResults = false;
+    rec.lang = 'en-US';
+    rec.onresult = (event) => {
+      for (let i = event.resultIndex; i < event.results.length; i += 1) {
+        const result = event.results[i];
+        if (!result.isFinal) continue;
+        const transcript = String(result[0]?.transcript || '').trim();
+        if (!transcript) continue;
+        this.dictationBuffer = this.dictationBuffer ? `${this.dictationBuffer} ${transcript}` : transcript;
+        this.setStatus('Listening... organizing after a short pause.');
+        if (this.silenceTimer) clearTimeout(this.silenceTimer);
+        this.silenceTimer = setTimeout(() => this._organizeBuffer(), 2500);
+      }
+    };
+    rec.onerror = () => {
+      if (!this.dictationActive) return;
+      setTimeout(() => { if (this.dictationActive && this.recognizer) { try { this.recognizer.start(); } catch (e) {} } }, 500);
+    };
+    rec.onend = () => {
+      if (!this.dictationActive) return;
+      setTimeout(() => { if (this.dictationActive && this.recognizer) { try { this.recognizer.start(); } catch (e) {} } }, 300);
+    };
+    return rec;
+  },
+  async _organizeBuffer() {
+    const raw = this.dictationBuffer.trim();
+    if (!raw) return;
+    this.dictationBuffer = '';
+    this.setStatus('Organizing notes...');
+    try {
+      const res = await api('/api/notes/organize', {
+        method: 'POST',
+        body: JSON.stringify({
+          raw_text: raw,
+          existing_content: String(this.textarea?.value || ''),
+          note_id: this.currentId || null,
+        }),
+      });
+      if (this.textarea) this.textarea.value = res.content || this.textarea.value;
+      this.setStatus(this.dictationActive ? 'Listening... speak your notes.' : '\u00a0');
+    } catch (error) {
+      this.setStatus(`Could not organize notes: ${error.message}`);
+    }
+  },
+};
+
+function parseNotesIntent(text) {
+  const raw = String(text || '').trim();
+  if (!raw) return null;
+  const lower = raw.toLowerCase();
+  if (!/\bnote\s*(s|book|books)?\b/.test(lower)) return null;
+
+  const isNew = /\b(start|create|make)\b/.test(lower);
+  const isResume = !isNew && /\b(resume|pull up|bring up|continue|find|open|show)\b/.test(lower);
+  const normalized = lower.replace(/[.,!?]+$/, '').trim();
+  const isBare = !isNew && !isResume && /^(my\s+)?note\s*(s|books?)?$/.test(normalized);
+  if (!isNew && !isResume && !isBare) return null;
+
+  const topicMatch = raw.match(/\b(?:on|about|for|regarding|titled|called|named)\s+(.+)$/i);
+  const topic = topicMatch ? topicMatch[1].trim().replace(/[.?!]+$/, '') : '';
+
+  return { type: isNew ? 'new' : 'resume', topic };
+}
+
+async function handleNotesIntent(intent) {
+  if (intent.type === 'new') {
+    if (intent.topic) {
+      try {
+        const created = await api('/api/notes', { method: 'POST', body: JSON.stringify({ title: intent.topic, content: '' }) });
+        NotesApp.open({ id: created.id, title: created.title, content: created.content || '' });
+        addMessage('Future', `Started a new note titled "${created.title}".`);
+      } catch (error) {
+        addMessage('Future', `Could not create note: ${error.message}`);
+      }
+    } else {
+      NotesApp.awaitingTitleFor = 'new';
+      NotesApp.open({ id: null, title: '', content: '' });
+      addMessage('Future', 'Starting a new note tab. What should I title it?');
+    }
+    return;
+  }
+
+  try {
+    const query = intent.topic;
+    if (!query) {
+      await NotesApp.openBrowser();
+      addMessage('Future', 'Here\'s your notebook. Pick a note to reopen, or start a new one.');
+      return;
+    }
+
+    const matches = await api(`/api/notes/search?q=${encodeURIComponent(query)}`);
+    if (!matches.length) {
+      addMessage('Future', `I couldn't find notes on "${query}". Say "start a notes tab on ${query}" to create one.`);
+      return;
+    }
+    const best = matches[0];
+    const full = await api(`/api/notes/${encodeURIComponent(best.id)}`);
+    NotesApp.open({ id: full.id, title: full.title, content: full.content || '' });
+    addMessage('Future', `Resumed "${full.title}".`);
+  } catch (error) {
+    addMessage('Future', `Could not open notes: ${error.message}`);
+  }
+}
+
+document.getElementById('notes-close')?.addEventListener('click', () => NotesApp.close());
+document.getElementById('notes-discard')?.addEventListener('click', () => NotesApp.discardAndExit());
+document.getElementById('notes-save-exit')?.addEventListener('click', () => NotesApp.saveAndExit());
+document.getElementById('notes-mic-btn')?.addEventListener('click', () => NotesApp.toggleDictation());
+document.getElementById('notes-bullet-btn')?.addEventListener('click', () => NotesApp.insertBullet());
+document.getElementById('notes-list-toggle')?.addEventListener('click', () => NotesApp.toggleList());
+document.getElementById('notes-new-btn')?.addEventListener('click', () => NotesApp.startNew());
+document.getElementById('notes-textarea')?.addEventListener('keydown', (e) => NotesApp.handleEnterKey(e));
+
 let pendingChatImageLabel = '';
 
 function parseImageGeneratePrompt(text) {
@@ -2842,6 +3358,24 @@ chatThread.addEventListener('click', (event) => {
 
 async function sendChat(message, opts = {}) {
   const source = opts.source || 'typed';
+  const command = String(message || '').trim();
+  if (/^\/new(?:\s|$)/i.test(command)) {
+    document.getElementById('new-chat')?.click();
+    return;
+  }
+  if (/^\/recall(?:\s|$)/i.test(command)) {
+    const search = command.replace(/^\/recall\s*/i, '').trim();
+    try {
+      const sessions = await api(`/api/chat/sessions${search ? `?search=${encodeURIComponent(search)}` : ''}`);
+      addMessage('Future', sessions.length
+        ? sessions.map((session) => `${session.starred ? '* ' : ''}${session.title} (${session.message_count} messages)`).join('\n')
+        : 'No saved conversations found.');
+      refreshRecentChats();
+    } catch (_) {
+      addMessage('Future', 'Saved conversations are unavailable right now.');
+    }
+    return;
+  }
   const modeCommand = detectVoiceModeCommand(message);
   if (modeCommand) {
     if (source !== 'voice') addMessage('You', message);
@@ -2853,11 +3387,32 @@ async function sendChat(message, opts = {}) {
     return;
   }
 
+  if (NotesApp.awaitingTitleFor === 'new') {
+    NotesApp.awaitingTitleFor = null;
+    const title = String(message || '').trim();
+    if (source !== 'voice') addMessage('You', message);
+    if (NotesApp.titleInput) NotesApp.titleInput.value = title;
+    addMessage('Future', `Titled the note "${title}". Start typing or press the mic to dictate.`);
+    return;
+  }
+
+  const notesIntent = parseNotesIntent(message);
+  if (notesIntent) {
+    if (source !== 'voice') addMessage('You', message);
+    await handleNotesIntent(notesIntent);
+    return;
+  }
+
   addMessage('You', message);
   try {
-    const res = await api('/api/chat/message', { method: 'POST', body: JSON.stringify({ message }) });
+    const res = await api('/api/chat/message', {
+      method: 'POST',
+      body: JSON.stringify({ message, session_id: activeChatSessionId }),
+    });
+    activeChatSessionId = res.session_id || activeChatSessionId;
     const replyText = res.reply || 'Future did not return a response.';
     addMessage('Future', replyText);
+    refreshRecentChats();
     await speakReplyIfVoiceMode(replyText);
     setServiceLive('chat', true);
   } catch (e) {
@@ -2865,6 +3420,46 @@ async function sendChat(message, opts = {}) {
     setServiceLive('chat', false);
   }
 }
+
+async function refreshRecentChats() {
+  if (!recentChats) return;
+  try {
+    const sessions = await api('/api/chat/sessions');
+    recentChats.innerHTML = '<option value="">Recent chats</option>' + sessions.map((session) =>
+      `<option value="${esc(session.id)}">${session.starred ? '* ' : ''}${esc(session.title)}</option>`
+    ).join('');
+    recentChats.value = activeChatSessionId || '';
+  } catch (_) {
+    // Chat remains usable when the optional history view is unavailable.
+  }
+}
+
+async function resumeChatSession(sessionId) {
+  if (!sessionId) return;
+  try {
+    const session = await api(`/api/chat/sessions/${encodeURIComponent(sessionId)}`);
+    activeChatSessionId = session.id;
+    chatThread.innerHTML = '';
+    session.messages.forEach((message) => addMessage(message.role === 'user' ? 'You' : 'Future', message.content));
+  } catch (_) {
+    addMessage('Future', 'That saved conversation could not be opened.');
+  }
+}
+
+recentChats?.addEventListener('change', () => resumeChatSession(recentChats.value));
+document.getElementById('new-chat')?.addEventListener('click', async () => {
+  try {
+    const session = await api('/api/chat/sessions', { method: 'POST', body: JSON.stringify({}) });
+    activeChatSessionId = session.id;
+    chatThread.innerHTML = '';
+    addMessage('Future', 'New conversation started.');
+    refreshRecentChats();
+  } catch (_) {
+    addMessage('Future', 'Could not start a new conversation.');
+  }
+});
+
+refreshRecentChats();
 
 async function speakReplyIfVoiceMode(text) {
   if (!voiceLockEnabled) return;
@@ -2958,6 +3553,9 @@ document.getElementById('compose-send')?.addEventListener('click', () => sendCom
 document.getElementById('compose-overlay')?.addEventListener('click', (event) => {
   if (event.target.id === 'compose-overlay') EmailComposer.close();
 });
+document.getElementById('notes-overlay')?.addEventListener('click', (event) => {
+  if (event.target.id === 'notes-overlay') NotesApp.close();
+});
 
 document.getElementById('chat-image-open')?.addEventListener('click', () => {
   chatImagePicker?.click();
@@ -3027,9 +3625,15 @@ document.querySelectorAll('.nav-item').forEach((btn) => {
     } else if (btn.dataset.view === 'chat') {
       document.getElementById('chat-input')?.focus({ preventScroll: true });
       window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else if (btn.dataset.view === 'notes') {
+      NotesApp.openBrowser();
     }
   });
 });
+
+function escapeHtml(str) {
+  return String(str || '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
 
 document.getElementById('map-open')?.addEventListener('click', () => {
   const address = document.getElementById('map-addr')?.textContent.trim() || 'Home Workshop';
