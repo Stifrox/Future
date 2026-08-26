@@ -39,3 +39,6 @@ Thumbs.db
 future_start.err.txt
 future_start.out.txt
 new_to_runt_hen.txt
+
+# Runtime memory
+future_memory.json
