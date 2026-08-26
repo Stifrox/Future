@@ -1,0 +1,40 @@
+name: Deploy Future Production
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+
+    steps:
+      - name: Deploy production code
+        shell: bash
+        run: |
+          set -e
+
+          cd /home/ubuntu/Future
+
+          echo "Fetching latest code..."
+          git fetch origin main
+
+          echo "Resetting production code to origin/main..."
+          git reset --hard origin/main
+
+          echo "Restarting Future..."
+          sudo systemctl restart future
+
+          echo "Waiting for Future to start..."
+          sleep 5
+
+          echo "Checking Future service..."
+          sudo systemctl is-active --quiet future
+
+          echo "Checking API..."
+          curl --fail --silent --show-error \
+            http://127.0.0.1:8000/ \
+            > /dev/null || true
+
+          echo "Production deployment successful."
