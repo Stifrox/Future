@@ -1651,6 +1651,7 @@
           <select id="recent-chats" title="Recent chats" aria-label="Recent chats">
             <option value="">Recent chats</option>
           </select>
+          <button type="button" class="icon-btn" id="rename-chat" title="Rename chat" aria-label="Rename chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg></button>
           <button type="button" class="icon-btn" id="new-chat" title="New chat" aria-label="New chat">+</button>
           <div class="chat-status"><span class="dot demo" id="chat-status-dot"></span><span id="chat-status-label">Chat ready</span></div>
         </div>
@@ -3447,6 +3448,24 @@ async function resumeChatSession(sessionId) {
 }
 
 recentChats?.addEventListener('change', () => resumeChatSession(recentChats.value));
+document.getElementById('rename-chat')?.addEventListener('click', async () => {
+  const sessionId = activeChatSessionId || recentChats?.value;
+  if (!sessionId) return;
+  try {
+    const session = await api(`/api/chat/sessions/${encodeURIComponent(sessionId)}`);
+    const title = window.prompt('Rename this chat', session.title);
+    if (title === null) return;
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) return;
+    await api(`/api/chat/sessions/${encodeURIComponent(sessionId)}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ title: trimmedTitle }),
+    });
+    refreshRecentChats();
+  } catch (_) {
+    addMessage('Future', 'That chat could not be renamed.');
+  }
+});
 document.getElementById('new-chat')?.addEventListener('click', async () => {
   try {
     const session = await api('/api/chat/sessions', { method: 'POST', body: JSON.stringify({}) });
@@ -3752,6 +3771,7 @@ function initCompactDropdownLayout() {
 }
 
 function refreshAll() {
+  refreshRecentChats();
   refreshSystemStats();
   Spotify.refresh();
   refreshStocks();

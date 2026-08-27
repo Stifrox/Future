@@ -7,6 +7,7 @@ import json
 import os
 import sqlite3
 import uuid
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -17,6 +18,24 @@ MAX_RECENT_SESSIONS = 10
 
 def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _default_title(message: str) -> str:
+    """Create a readable session title from the opening user request."""
+    normalized = " ".join(message.replace("\n", " ").split()).strip(" .,!?:;-")
+    lowered = normalized.lower()
+    for prefix in ("hey future ", "hey ", "hello ", "hi ", "can you ", "could you ", "please "):
+        if lowered.startswith(prefix):
+            normalized = normalized[len(prefix):].strip()
+            lowered = normalized.lower()
+    if not normalized:
+        return "New conversation"
+
+    words = normalized.split()
+    title = " ".join(words[:9])
+    if len(words) > 9 or len(title) > 72:
+        title = title[:72].rstrip() + "..."
+    return title[:120].capitalize()
 
 
 def _database_path() -> Path:
@@ -37,8 +56,17 @@ class ChatSessionStore:
         connection.row_factory = sqlite3.Row
         return connection
 
+    @contextmanager
+    def _connection(self):
+        connection = self._connect()
+        try:
+            with connection:
+                yield connection
+        finally:
+            connection.close()
+
     def _initialize(self) -> None:
-        with self._connect() as connection:
+        with self._connection() as connection:
             connection.execute(
                 """CREATE TABLE IF NOT EXISTS chat_sessions (
                     id TEXT PRIMARY KEY,
@@ -73,7 +101,7 @@ class ChatSessionStore:
             "updated_at": now,
             "messages": [],
         }
-        with self._connect() as connection:
+        with self._connection() as connection:
             connection.execute(
                 "INSERT INTO chat_sessions VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                 (session["id"], session["title"], session["description"], json.dumps(session["tags"]), 0,
@@ -89,7 +117,7 @@ class ChatSessionStore:
         return result
 
     def get(self, session_id: str) -> Optional[Dict[str, Any]]:
-        with self._connect() as connection:
+        with self._connection() as connection:
             row = connection.execute("SELECT * FROM chat_sessions WHERE id = ?", (session_id,)).fetchone()
         return self._row(row) if row else None
 
@@ -102,10 +130,12 @@ class ChatSessionStore:
             for item in messages if str(item.get("content", "")).strip()
         ]
         if session["title"] == "New conversation" and history:
-            first = history[0]["content"].strip().replace("\n", " ")
-            session["title"] = first[:80] + ("..." if len(first) > 80 else "")
+            first_user_message = next(
+                (item["content"] for item in history if item["role"] == "user"), ""
+            )
+            session["title"] = _default_title(first_user_message)
         updated = _utc_now()
-        with self._connect() as connection:
+        with self._connection() as connection:
             connection.execute(
                 "UPDATE chat_sessions SET title = ?, updated_at = ?, messages = ? WHERE id = ?",
                 (session["title"], updated, json.dumps(history), session_id),
@@ -115,7 +145,7 @@ class ChatSessionStore:
         return self._row_from_dict(session)
 
     def list(self, query: str = "") -> List[Dict[str, Any]]:
-        with self._connect() as connection:
+        with self._connection() as connection:
             rows = connection.execute("SELECT * FROM chat_sessions ORDER BY starred DESC, updated_at DESC").fetchall()
         sessions = [self._row(row) for row in rows]
         if query.strip():
@@ -140,7 +170,7 @@ class ChatSessionStore:
             session["tags"] = sorted({str(tag).strip()[:40] for tag in tags if str(tag).strip()})
         if starred is not None:
             session["starred"] = bool(starred)
-        with self._connect() as connection:
+        with self._connection() as connection:
             connection.execute(
                 "UPDATE chat_sessions SET title=?, description=?, tags=?, starred=?, updated_at=? WHERE id=?",
                 (session["title"], session["description"], json.dumps(session["tags"]), int(session["starred"]),
@@ -149,7 +179,7 @@ class ChatSessionStore:
         return self.get(session_id)
 
     def prune(self) -> None:
-        with self._connect() as connection:
+        with self._connection() as connection:
             connection.execute(
                 """DELETE FROM chat_sessions WHERE starred = 0 AND id NOT IN
                    (SELECT id FROM chat_sessions WHERE starred = 0 ORDER BY updated_at DESC LIMIT ?)""",
