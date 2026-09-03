@@ -8,6 +8,9 @@ import urllib.parse
 import webbrowser
 import base64
 from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+from email import encoders
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import requests
@@ -1622,6 +1625,92 @@ def send_gmail_message(to_email, subject, body):
         )
     response.raise_for_status()
     return response.json()
+
+
+def send_gmail_message_with_attachments(to_email, subject, body, attachments=None):
+    """Same as send_gmail_message but with optional [(filename, bytes, mime_type), ...] attachments."""
+    headers = _gmail_headers()
+    message = MIMEMultipart()
+    message["to"] = to_email
+    message["subject"] = subject
+    message.attach(MIMEText(body))
+
+    for filename, file_bytes, mime_type in attachments or []:
+        maintype, _, subtype = (mime_type or "application/octet-stream").partition("/")
+        part = MIMEBase(maintype or "application", subtype or "octet-stream")
+        part.set_payload(file_bytes)
+        encoders.encode_base64(part)
+        part.add_header("Content-Disposition", f'attachment; filename="{filename}"')
+        message.attach(part)
+
+    raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode("utf-8")
+    payload = {"raw": raw_message}
+    response = requests.post(
+        "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
+        headers=headers,
+        json=payload,
+        timeout=60,
+    )
+    if response.status_code == 401 and GOOGLE_CALENDAR_REFRESH_TOKEN:
+        _refresh_google_calendar_access_token()
+        headers = _gmail_headers()
+        response = requests.post(
+            "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
+            headers=headers,
+            json=payload,
+            timeout=60,
+        )
+    response.raise_for_status()
+    return response.json()
+
+
+def _decode_gmail_part_body(part):
+    data = (part.get("body", {}) or {}).get("data")
+    if not data:
+        return ""
+    try:
+        return base64.urlsafe_b64decode(data + "===").decode("utf-8", errors="ignore")
+    except Exception:
+        return ""
+
+
+def get_gmail_message_body(message_id):
+    """Fetch a message's plain-text body (falls back to the snippet) for parsing replies."""
+    headers = _gmail_headers()
+    response = requests.get(
+        f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{message_id}",
+        headers=headers,
+        params={"format": "full"},
+        timeout=20,
+    )
+    if response.status_code == 401 and GOOGLE_CALENDAR_REFRESH_TOKEN:
+        _refresh_google_calendar_access_token()
+        headers = _gmail_headers()
+        response = requests.get(
+            f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{message_id}",
+            headers=headers,
+            params={"format": "full"},
+            timeout=20,
+        )
+    response.raise_for_status()
+    payload = response.json().get("payload", {}) or {}
+
+    def _walk(node):
+        mime_type = node.get("mimeType", "")
+        if mime_type == "text/plain":
+            text = _decode_gmail_part_body(node)
+            if text:
+                return text
+        for child in node.get("parts", []) or []:
+            text = _walk(child)
+            if text:
+                return text
+        return ""
+
+    body_text = _walk(payload) or _decode_gmail_part_body(payload)
+    if body_text:
+        return body_text
+    return response.json().get("snippet", "")
 
 
 def _extract_gmail_send_parts(command):

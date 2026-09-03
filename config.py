@@ -28,3 +28,7 @@ ALPACA_BASE_URL = "https://paper-api.alpaca.markets"
 # ElevenLabs TTS
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
 ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "")
+
+# Instagram content automation (left blank until a source folder is set up)
+CONTENT_SOURCE_DIR = os.getenv("FUTURE_CONTENT_SOURCE_DIR", "").strip()
+CONTENT_APPROVAL_EMAIL = os.getenv("FUTURE_CONTENT_APPROVAL_EMAIL", "").strip()

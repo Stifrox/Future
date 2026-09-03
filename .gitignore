@@ -20,6 +20,7 @@ venv310/
 google_calendar_tokens.json
 spotify_tokens.json
 data/*token*.json
+.ssl/
 
 # Local data stores and heavy artifacts
 db/

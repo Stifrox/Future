@@ -8,8 +8,9 @@ import sys
 import urllib.parse
 import secrets
 import time
+from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 import requests
 import platform
@@ -1062,11 +1063,51 @@ def organize_notes_text(raw_text: str, existing_content: str = "") -> str:
     return joined.strip()
 
 
+def _looks_like_content_creation_intent(query_lower: str) -> bool:
+    return any(
+        phrase in query_lower
+        for phrase in [
+            "activate content creation",
+            "start content creation",
+            "content creation automation",
+            "make my instagram videos",
+            "make the instagram videos",
+            "generate instagram content",
+            "start the content batch",
+        ]
+    )
+
+
+def _start_content_creation_reply(query: str) -> str:
+    from tools import tasks as background_tasks
+    from tools.content_studio import _resolve_source_dir, scan_source_assets
+
+    source_dir = _resolve_source_dir()
+    if not source_dir:
+        return (
+            "I don't have a content source folder set up yet \u2014 set FUTURE_CONTENT_SOURCE_DIR to the "
+            "folder with your clips/screenshots, then ask me again."
+        )
+
+    assets = scan_source_assets(source_dir)
+    if not assets:
+        return f"I checked {source_dir} but didn't find any images or clips to work with."
+
+    task = background_tasks.enqueue("instagram_batch", {})
+    return (
+        f"Got it \u2014 found {len(assets)} source files. I'm scanning and building the video batch now "
+        f"(task {task['id'][:8]}); I'll email you the full batch to review once it's done."
+    )
+
+
 def _handle_local_intents(query: str) -> Optional[str]:
     q = query.lower()
 
     if _looks_like_rewrite_planning_intent(q):
         return _rewrite_planning_clarifier()
+
+    if _looks_like_content_creation_intent(q):
+        return _start_content_creation_reply(query)
 
     if has_pending_calendar_draft() and should_handle_calendar_followup(query):
         try:
@@ -1239,7 +1280,35 @@ def _handle_memory_intents(query: str) -> Optional[str]:
     return None
 
 
-def _build_chat_messages(query: str, recent_context=None):
+def time_context(client_time: Optional[str] = None) -> str:
+    """Describe the current moment (day/time/part-of-day) so replies can be time-aware."""
+    now = None
+    if client_time:
+        try:
+            normalized = str(client_time).strip().replace("Z", "+00:00")
+            now = datetime.fromisoformat(normalized)
+        except Exception:
+            now = None
+    if now is None:
+        now = datetime.now()
+
+    hour = now.hour
+    if 5 <= hour < 12:
+        part_of_day = "morning"
+    elif 12 <= hour < 17:
+        part_of_day = "afternoon"
+    elif 17 <= hour < 22:
+        part_of_day = "evening"
+    else:
+        part_of_day = "late night"
+
+    descriptor = f"It is currently {now.strftime('%-I:%M %p')} on {now.strftime('%A')} ({part_of_day})." if os.name != "nt" else f"It is currently {now.strftime('%I:%M %p').lstrip('0')} on {now.strftime('%A')} ({part_of_day})."
+    if part_of_day == "late night":
+        descriptor += " It's late, so it's natural to bring up rest/sleep if it fits the conversation."
+    return descriptor
+
+
+def _build_chat_messages(query: str, recent_context=None, client_time: Optional[str] = None):
     personality = load_personality()
     memory = load_memory()
     history_lines = []
@@ -1291,6 +1360,7 @@ def _build_chat_messages(query: str, recent_context=None):
         "If the user asks what you remember, answer from that memory when possible. "
         "Do not claim you cannot remember across chats when the stored memory includes relevant information. "
         "Default to concise, practical, and action-oriented answers, but if the user asks for depth, detail, or step-by-step explanation, provide a fuller long-form answer.\n\n"
+        f"{time_context(client_time)}\n\n"
         f"Recent chat turns (last 20 lines):\n{recent_text}\n\n"
         f"Stored facts:\n{fact_text}\n\n"
         f"Stored conversation history:\n{history_text}"
@@ -1436,7 +1506,69 @@ def _response_length_profile(query: str) -> tuple[int, str]:
     return 650, "Keep answers concise by default unless the user asks for greater depth."
 
 
-def handle_query(query: str, recent_context=None) -> str:
+def _model_candidates() -> List[str]:
+    ordered = []
+    for candidate in [PRIMARY_MODEL, BACKUP_MODEL, ANTHROPIC_MODEL, "gpt-5", "gpt-4.1", "claude-sonnet-4-5"]:
+        model_name = (candidate or "").strip()
+        if model_name and model_name not in ordered:
+            ordered.append(model_name)
+    return ordered
+
+
+def _try_model_candidates(messages, max_tokens: int) -> Optional[str]:
+    """Call each configured model in order and return the first successful cleaned reply."""
+    for model_name in _model_candidates():
+        try:
+            if _is_anthropic_model(model_name):
+                cleaned = _anthropic_reply(messages, model_name=model_name, max_tokens=max_tokens)
+            elif _client:
+                response = _client.chat.completions.create(
+                    model=model_name,
+                    messages=messages,
+                    max_completion_tokens=max_tokens,
+                )
+                text = response.choices[0].message.content
+                cleaned = _clean_model_text(text or "") if text else None
+            else:
+                cleaned = None
+
+            if cleaned:
+                return cleaned
+        except Exception as exc:
+            provider = "Anthropic" if _is_anthropic_model(model_name) else "OpenAI"
+            print(f"{provider} error with model {model_name}: {exc}")
+    return None
+
+
+def generate_opening_greeting(client_time: Optional[str] = None) -> str:
+    """Generate a one-off, time-aware opening line in Future's voice (not stored as a chat turn)."""
+    personality = load_personality()
+    fallback = "Hey, what are we working on?"
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                f"You are {personality['name']}, a personal AI assistant with traits "
+                f"{personality['traits']} and tone {personality['tone']}. "
+                f"{time_context(client_time)} "
+                "Write a single short, natural opening line to greet the user as the chat first opens. "
+                "Vary the wording each time, sound like yourself rather than a generic assistant, "
+                "and only reference the time of day if it feels natural. "
+                "Do not literally say 'what can I help you with' every time. One sentence only, no quotes."
+            ),
+        },
+        {"role": "user", "content": "(system: generate the opening greeting now)"},
+    ]
+    try:
+        cleaned = _try_model_candidates(messages, max_tokens=60)
+        if cleaned:
+            return cleaned.strip().strip('"')
+    except Exception as exc:
+        print(f"Greeting generation failed: {exc}")
+    return fallback
+
+
+def handle_query(query: str, recent_context=None, client_time: Optional[str] = None) -> str:
     """Route integration commands first; otherwise answer with cloud model if available."""
     query = (query or "").strip()
     if not query:
@@ -1453,7 +1585,7 @@ def handle_query(query: str, recent_context=None) -> str:
     memory = None
     messages = None
     try:
-        memory, messages = _build_chat_messages(query, recent_context=recent_context)
+        memory, messages = _build_chat_messages(query, recent_context=recent_context, client_time=client_time)
     except Exception as exc:
         print(f"Could not load chat memory context: {exc}")
         memory = None
@@ -1474,34 +1606,12 @@ def handle_query(query: str, recent_context=None) -> str:
         system_content = str(messages[0].get("content", "")).strip()
         messages[0]["content"] = f"{system_content}\n\nCurrent response style: {style_directive}"
 
-    model_candidates = []
-    for candidate in [PRIMARY_MODEL, BACKUP_MODEL, ANTHROPIC_MODEL, "gpt-5", "gpt-4.1", "claude-sonnet-4-5"]:
-        model_name = (candidate or "").strip()
-        if model_name and model_name not in model_candidates:
-            model_candidates.append(model_name)
-
-    for model_name in model_candidates:
-        try:
-            cleaned = None
-            if _is_anthropic_model(model_name):
-                cleaned = _anthropic_reply(messages, model_name=model_name, max_tokens=max_tokens)
-            elif _client:
-                response = _client.chat.completions.create(
-                    model=model_name,
-                    messages=messages,
-                    max_completion_tokens=max_tokens,
-                )
-                text = response.choices[0].message.content
-                cleaned = _clean_model_text(text or "") if text else None
-
-            if cleaned:
-                if memory is not None:
-                    remember(memory, query, cleaned)
-                    save_memory(memory)
-                return cleaned
-        except Exception as exc:
-            provider = "Anthropic" if _is_anthropic_model(model_name) else "OpenAI"
-            print(f"{provider} error with model {model_name}: {exc}")
+    cleaned = _try_model_candidates(messages, max_tokens)
+    if cleaned:
+        if memory is not None:
+            remember(memory, query, cleaned)
+            save_memory(memory)
+        return cleaned
 
     if ALLOW_OLLAMA_FALLBACK:
         local_model_reply = _reply_with_local_model(query)

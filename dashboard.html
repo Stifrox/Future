@@ -1050,6 +1050,98 @@
     min-height:16px;
   }
 
+  .content-overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(5,6,7,0.62);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    z-index:1120;
+  }
+  .content-overlay.open{ display:flex; }
+  .content-modal{
+    width:560px;
+    max-width:94vw;
+    max-height:88vh;
+    overflow-y:auto;
+    background:var(--bg-panel);
+    border:1px solid var(--border-bright);
+    border-radius:var(--radius-m);
+    box-shadow:0 22px 64px rgba(0,0,0,0.52);
+  }
+  .content-body{
+    padding:15px;
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+  }
+  .content-field label{
+    display:block;
+    font-family:var(--font-label);
+    font-size:10px;
+    letter-spacing:1px;
+    color:var(--text-3);
+    text-transform:uppercase;
+    margin-bottom:5px;
+  }
+  .content-field textarea,
+  .content-field input[type="text"],
+  .content-field input[type="number"]{
+    width:100%;
+    background:var(--bg-inset);
+    border:1px solid var(--border);
+    border-radius:var(--radius-s);
+    padding:9px 11px;
+    color:var(--text-1);
+    font-size:12.5px;
+    font-family:var(--font-mono);
+  }
+  .content-field textarea{ min-height:80px; resize:vertical; }
+  .content-field textarea:focus,
+  .content-field input:focus{ outline:none; border-color:var(--steel-dim); }
+  .content-folder-row{ display:flex; gap:8px; }
+  .content-folder-row input{ flex:1; }
+  .content-browser{
+    display:none;
+    border:1px solid var(--border);
+    border-radius:var(--radius-s);
+    background:var(--bg-inset);
+    padding:8px;
+    max-height:220px;
+    overflow-y:auto;
+  }
+  .content-browser.open{ display:block; }
+  .content-browser-path{
+    font-family:var(--font-mono);
+    font-size:11px;
+    color:var(--text-2);
+    padding:4px 6px 8px;
+    word-break:break-all;
+  }
+  .content-browser-item{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:7px 8px;
+    border-radius:var(--radius-s);
+    cursor:pointer;
+    font-size:12px;
+    color:var(--text-2);
+  }
+  .content-browser-item:hover{ background:var(--bg-panel-raised); color:var(--text-1); }
+  .content-note{
+    font-size:11px;
+    color:var(--text-3);
+  }
+  .content-actions{
+    display:flex;
+    justify-content:flex-end;
+    gap:10px;
+    border-top:1px solid var(--border);
+    padding:14px 15px;
+  }
+
   /* ---------- GAUGES ---------- */
   .gauge-grid{
     display:grid;
@@ -1658,16 +1750,17 @@
       </div>
 
       <div class="chat-thread" id="chat-thread">
-        <div class="msg">
+        <div class="msg" id="chat-greeting-msg">
           <div class="who">Future</div>
-          <div class="bubble">Hello sir, what can I help you with today?</div>
-          <div class="ts">9:00 AM</div>
+          <div class="bubble" id="chat-greeting-bubble">...</div>
+          <div class="ts"></div>
         </div>
       </div>
 
       <form class="chat-input-row" id="chat-form">
         <input type="text" id="chat-input" placeholder="Message Future..." autocomplete="off">
         <button type="button" class="chat-image" id="chat-image-open" title="Upload image"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-6 6-3-3-4 4"/></svg></button>
+        <button type="button" class="chat-image" id="chat-image-generate" title="Generate image"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M18.4 5.6l-2.8 2.8M8.4 15.6l-2.8 2.8"/></svg></button>
         <input type="file" id="chat-image-picker" accept="image/*" style="display:none;">
         <button type="button" class="chat-mic-lock" id="chat-mic-lock" title="Voice lock off"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 14a3 3 0 0 0 3-3V7a3 3 0 1 0-6 0v4a3 3 0 0 0 3 3Z"/><path d="M19 11a7 7 0 0 1-14 0"/><path d="M12 18v4"/><path d="M8 22h8"/></svg></button>
         <button type="submit" class="chat-send"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/></svg></button>
@@ -1982,6 +2075,50 @@
         </div>
         <div class="image-status" id="image-analyze-status"></div>
       </section>
+    </div>
+  </div>
+</div>
+
+<!-- ================= CONTENT STUDIO MODAL ================= -->
+<div class="content-overlay" id="content-overlay">
+  <div class="content-modal">
+    <div class="panel-head">
+      <div class="panel-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="m22 8-6 4 6 4V8Z"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg>
+        Content Studio
+      </div>
+      <button class="icon-btn" id="content-close" style="width:28px;height:28px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="content-body">
+      <div class="content-field">
+        <label>Content direction (optional)</label>
+        <textarea id="content-instruction" placeholder="e.g. focus on the AI coach and onboarding flow"></textarea>
+      </div>
+      <div class="content-field">
+        <label>Number of videos</label>
+        <input type="number" id="content-count" min="6" max="20" value="18">
+      </div>
+      <div class="content-field">
+        <label>Source folder</label>
+        <div class="content-folder-row">
+          <input type="text" id="content-folder" placeholder="Path to your clips/screenshots folder">
+          <button type="button" class="btn" id="content-browse-btn">Browse</button>
+        </div>
+        <div class="content-browser" id="content-browser">
+          <div class="content-browser-path" id="content-browser-path"></div>
+          <div id="content-browser-list"></div>
+          <div class="content-actions" style="border-top:none;padding:8px 0 0;">
+            <button type="button" class="btn primary" id="content-browser-select">Use this folder</button>
+          </div>
+        </div>
+      </div>
+      <div class="content-note">Future will scan this folder, write scripts, and email you the finished batch for approval.</div>
+    </div>
+    <div class="content-actions">
+      <button class="btn" id="content-cancel">Cancel</button>
+      <button class="btn primary" id="content-start">Start Generating</button>
     </div>
   </div>
 </div>
@@ -3088,19 +3225,81 @@ function createSpeechRecognizer() {
 }
 
 function updateVoiceLockUi() {
-  if (!chatMicLock) return;
+  if (!chatMicLock || !secureVoiceAvailable) return;
   chatMicLock.classList.toggle('active', voiceLockEnabled);
   chatMicLock.title = voiceLockEnabled
     ? 'Voice lock on (say "Future" once, then continue speaking)'
     : 'Voice lock off';
 }
 
+let pttRecorder = null;
+let pttChunks = [];
+let pttActive = false;
+let pttStream = null;
+
+async function startPushToTalk() {
+  if (pttActive) return;
+  try {
+    pttStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    pttChunks = [];
+    const mimeType = ['audio/mp4', 'audio/webm'].find((type) => window.MediaRecorder.isTypeSupported?.(type)) || '';
+    pttRecorder = mimeType ? new MediaRecorder(pttStream, { mimeType }) : new MediaRecorder(pttStream);
+    pttRecorder.ondataavailable = (e) => { if (e.data && e.data.size) pttChunks.push(e.data); };
+    pttRecorder.onstop = async () => {
+      pttStream?.getTracks().forEach((track) => track.stop());
+      pttStream = null;
+      if (!pttChunks.length) return;
+      const blob = new Blob(pttChunks, { type: pttRecorder.mimeType || 'audio/webm' });
+      await sendVoiceClipForTranscription(blob);
+    };
+    pttRecorder.start();
+    pttActive = true;
+    chatMicLock?.classList.add('active');
+    if (chatMicLock) chatMicLock.title = 'Recording... release to send';
+  } catch (error) {
+    addMessage('Future', `Microphone unavailable: ${error.message}`);
+  }
+}
+
+function stopPushToTalk() {
+  if (!pttActive || !pttRecorder) return;
+  pttActive = false;
+  chatMicLock?.classList.remove('active');
+  if (chatMicLock) chatMicLock.title = 'Hold to talk';
+  try { pttRecorder.stop(); } catch (e) {}
+}
+
+async function sendVoiceClipForTranscription(blob) {
+  try {
+    const dataUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ''));
+      reader.onerror = () => reject(new Error('Could not read recording'));
+      reader.readAsDataURL(blob);
+    });
+    const result = await api('/api/voice/transcribe', {
+      method: 'POST',
+      body: JSON.stringify({ audio_data_url: dataUrl }),
+    });
+    const text = String(result.text || '').trim();
+    if (!text) {
+      addMessage('Future', 'I could not hear anything in that recording.');
+      return;
+    }
+    sendChat(text, { source: 'voice' });
+  } catch (error) {
+    addMessage('Future', `Voice transcription failed: ${error.message}`);
+  }
+}
+
 function setVoiceLock(enabled, opts = {}) {
   const source = opts.source || 'ui';
   const announce = opts.announce !== false;
 
-  if (enabled && !hasSpeechRecognition()) {
-    addMessage('Future', 'Voice lock is not supported in this browser.');
+  if (enabled && !secureVoiceAvailable) {
+    addMessage('Future', canRecordAudio
+      ? 'Hands-free voice lock needs Chrome on Android (or HTTPS). Hold the mic button to talk instead.'
+      : 'Voice lock is not supported in this browser.');
     return;
   }
 
@@ -3357,9 +3556,162 @@ chatThread.addEventListener('click', (event) => {
   copyCodeFromButton(button);
 });
 
+function isContentCreationCommand(command) {
+  const text = String(command || '').toLowerCase();
+  return [
+    'activate content creation',
+    'start content creation',
+    'content creation automation',
+    'make my instagram videos',
+    'make the instagram videos',
+    'generate instagram content',
+    'start the content batch',
+  ].some((phrase) => text.includes(phrase));
+}
+
+function trackContentCreationProgress(startedAt) {
+  let taskId = '';
+  let lastUpdate = '';
+  let attempts = 0;
+
+  const poll = async () => {
+    try {
+      if (!taskId) {
+        const tasks = await api('/api/tasks');
+        const task = tasks.find((item) => item.type === 'instagram_batch'
+          && Date.parse(item.created_at || '') >= startedAt - 30000);
+        if (!task) {
+          if (++attempts < 12) setTimeout(poll, 2500);
+          return;
+        }
+        taskId = task.id;
+      }
+
+      const task = await api(`/api/tasks/${encodeURIComponent(taskId)}`);
+      const update = String(task.progress_message || '').trim();
+      if (update && update !== lastUpdate && task.status !== 'done' && task.status !== 'error') {
+        addMessage('Future', update);
+        lastUpdate = update;
+      }
+
+      if (task.status === 'done') {
+        addMessage('Future', task.result?.emailed
+          ? "I'm all finished up. The results are in your email."
+          : "I'm all finished up, but the email delivery needs attention.");
+        return;
+      }
+      if (task.status === 'error') {
+        addMessage('Future', `Content generation stopped: ${task.error || 'Unknown error.'}`);
+        return;
+      }
+      setTimeout(poll, 6000);
+    } catch (_) {
+      if (++attempts < 12) setTimeout(poll, 6000);
+    }
+  };
+
+  setTimeout(poll, 1000);
+}
+
+const ContentStudio = {
+  overlay: document.getElementById('content-overlay'),
+  instruction: document.getElementById('content-instruction'),
+  count: document.getElementById('content-count'),
+  folder: document.getElementById('content-folder'),
+  browser: document.getElementById('content-browser'),
+  browserPath: document.getElementById('content-browser-path'),
+  browserList: document.getElementById('content-browser-list'),
+  open() {
+    this.overlay?.classList.add('open');
+    this.instruction?.focus();
+  },
+  close() {
+    this.overlay?.classList.remove('open');
+    this.browser?.classList.remove('open');
+  },
+  async toggleBrowser() {
+    const willOpen = !this.browser?.classList.contains('open');
+    if (willOpen) {
+      await this.loadFolder(String(this.folder?.value || '').trim() || undefined);
+      this.browser?.classList.add('open');
+    } else {
+      this.browser?.classList.remove('open');
+    }
+  },
+  async loadFolder(path) {
+    try {
+      const query = path ? `?path=${encodeURIComponent(path)}` : '';
+      const result = await api(`/api/content/browse${query}`);
+      if (this.browserPath) this.browserPath.textContent = result.path;
+      const rows = [];
+      if (result.parent) {
+        rows.push(`<div class="content-browser-item" data-nav="${esc(result.parent)}">.. (up)</div>`);
+      }
+      for (const name of result.folders || []) {
+        const childPath = `${result.path}\\${name}`.replace(/\\+/g, '\\');
+        rows.push(`<div class="content-browser-item" data-nav="${esc(childPath)}">${esc(name)}</div>`);
+      }
+      if (this.browserList) this.browserList.innerHTML = rows.join('') || '<div class="content-note">No subfolders here.</div>';
+    } catch (error) {
+      if (this.browserList) this.browserList.innerHTML = `<div class="content-note">Could not list folders: ${esc(error.message)}</div>`;
+    }
+  },
+  async submit() {
+    const payload = {
+      instruction: String(this.instruction?.value || '').trim(),
+      target_count: parseInt(this.count?.value, 10) || 18,
+      source_dir: String(this.folder?.value || '').trim() || null,
+    };
+    this.close();
+    addMessage('Future', 'Got it — scanning the folder and starting the batch now.');
+    try {
+      await api('/api/content/run', { method: 'POST', body: JSON.stringify(payload) });
+      trackContentCreationProgress(Date.now());
+    } catch (error) {
+      addMessage('Future', `Could not start content generation: ${error.message}`);
+    }
+  },
+};
+
+document.getElementById('content-close')?.addEventListener('click', () => ContentStudio.close());
+document.getElementById('content-cancel')?.addEventListener('click', () => ContentStudio.close());
+document.getElementById('content-start')?.addEventListener('click', () => ContentStudio.submit());
+document.getElementById('content-browse-btn')?.addEventListener('click', () => ContentStudio.toggleBrowser());
+document.getElementById('content-browser-select')?.addEventListener('click', () => {
+  const currentPath = ContentStudio.browserPath?.textContent || '';
+  if (currentPath && ContentStudio.folder) ContentStudio.folder.value = currentPath;
+  ContentStudio.browser?.classList.remove('open');
+});
+ContentStudio.overlay?.addEventListener('click', (event) => {
+  if (event.target === ContentStudio.overlay) ContentStudio.close();
+});
+ContentStudio.browserList?.addEventListener('click', (event) => {
+  const item = event.target.closest('.content-browser-item');
+  if (!item) return;
+  ContentStudio.loadFolder(item.getAttribute('data-nav'));
+});
+
+async function initContentFolderDefault() {
+  try {
+    const tasks = await api('/api/tasks');
+    const lastBatch = tasks.find((item) => item.type === 'instagram_batch');
+    if (lastBatch?.payload?.source_dir && ContentStudio.folder) {
+      ContentStudio.folder.value = lastBatch.payload.source_dir;
+    }
+  } catch (_) {
+    // Folder field just stays blank if no prior batch is available.
+  }
+}
+initContentFolderDefault();
+
 async function sendChat(message, opts = {}) {
   const source = opts.source || 'typed';
   const command = String(message || '').trim();
+  if (isContentCreationCommand(command)) {
+    if (source !== 'voice') addMessage('You', message);
+    ContentStudio.open();
+    return;
+  }
   if (/^\/new(?:\s|$)/i.test(command)) {
     document.getElementById('new-chat')?.click();
     return;
@@ -3408,7 +3760,7 @@ async function sendChat(message, opts = {}) {
   try {
     const res = await api('/api/chat/message', {
       method: 'POST',
-      body: JSON.stringify({ message, session_id: activeChatSessionId }),
+      body: JSON.stringify({ message, session_id: activeChatSessionId, client_time: new Date().toISOString() }),
     });
     activeChatSessionId = res.session_id || activeChatSessionId;
     const replyText = res.reply || 'Future did not return a response.';
@@ -3466,12 +3818,28 @@ document.getElementById('rename-chat')?.addEventListener('click', async () => {
     addMessage('Future', 'That chat could not be renamed.');
   }
 });
+async function loadOpeningGreeting(target) {
+  try {
+    const clientTime = encodeURIComponent(new Date().toISOString());
+    const res = await api(`/api/chat/greeting?client_time=${clientTime}`);
+    const reply = res.reply || 'Hey, what are we working on?';
+    if (target) {
+      target.textContent = reply;
+    } else {
+      addMessage('Future', reply);
+    }
+  } catch (_) {
+    if (target) target.textContent = 'Hey, what are we working on?';
+    else addMessage('Future', 'Hey, what are we working on?');
+  }
+}
+
 document.getElementById('new-chat')?.addEventListener('click', async () => {
   try {
     const session = await api('/api/chat/sessions', { method: 'POST', body: JSON.stringify({}) });
     activeChatSessionId = session.id;
     chatThread.innerHTML = '';
-    addMessage('Future', 'New conversation started.');
+    await loadOpeningGreeting();
     refreshRecentChats();
   } catch (_) {
     addMessage('Future', 'Could not start a new conversation.');
@@ -3479,6 +3847,11 @@ document.getElementById('new-chat')?.addEventListener('click', async () => {
 });
 
 refreshRecentChats();
+
+const chatGreetingBubble = document.getElementById('chat-greeting-bubble');
+const chatGreetingTs = document.querySelector('#chat-greeting-msg .ts');
+if (chatGreetingTs) chatGreetingTs.textContent = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+loadOpeningGreeting(chatGreetingBubble);
 
 async function speakReplyIfVoiceMode(text) {
   if (!voiceLockEnabled) return;
@@ -3619,11 +3992,143 @@ document.addEventListener('paste', async (event) => {
   }
 });
 
+const secureVoiceAvailable = hasSpeechRecognition() && window.isSecureContext;
+const canRecordAudio = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
+
 if (chatMicLock) {
-  chatMicLock.addEventListener('click', () => {
-    setVoiceLock(!voiceLockEnabled);
-  });
+  if (secureVoiceAvailable) {
+    chatMicLock.addEventListener('click', () => {
+      setVoiceLock(!voiceLockEnabled);
+    });
+  } else if (canRecordAudio) {
+    // iOS Safari (and any insecure-context browser) has no Web Speech API, so fall
+    // back to hold-to-talk: record a clip and transcribe it server-side on release.
+    chatMicLock.title = 'Hold to talk';
+    const start = (e) => { e.preventDefault(); startPushToTalk(); };
+    const stop = (e) => { e.preventDefault(); stopPushToTalk(); };
+    chatMicLock.addEventListener('pointerdown', start);
+    chatMicLock.addEventListener('pointerup', stop);
+    chatMicLock.addEventListener('pointerleave', stop);
+    chatMicLock.addEventListener('pointercancel', stop);
+  } else {
+    chatMicLock.title = 'Voice input not supported in this browser';
+    chatMicLock.addEventListener('click', () => {
+      addMessage('Future', 'Voice input is not supported in this browser.');
+    });
+  }
 }
+
+// ================= IMAGE STUDIO (dedicated, tap-friendly generate/analyze UI) =================
+const imageOverlay = document.getElementById('image-overlay');
+const imageGeneratePromptEl = document.getElementById('image-generate-prompt');
+const imageGenerateBtn = document.getElementById('image-generate-btn');
+const imageGenerateStatus = document.getElementById('image-generate-status');
+const imageGeneratedPreview = document.getElementById('image-generated-preview');
+const imageDownloadLink = document.getElementById('image-download-link');
+const imageDropzone = document.getElementById('image-dropzone');
+const imageFileInput = document.getElementById('image-file-input');
+const imageUploadPreview = document.getElementById('image-upload-preview');
+const imageAnalyzeQuestion = document.getElementById('image-analyze-question');
+const imageAnalyzeBtn = document.getElementById('image-analyze-btn');
+const imageAnalyzeStatus = document.getElementById('image-analyze-status');
+const imageClearBtn = document.getElementById('image-clear-btn');
+let studioImageDataUrl = '';
+
+function openImageStudio() {
+  imageOverlay?.classList.add('open');
+  imageGeneratePromptEl?.focus();
+}
+function closeImageStudio() {
+  imageOverlay?.classList.remove('open');
+}
+
+document.getElementById('chat-image-generate')?.addEventListener('click', openImageStudio);
+document.getElementById('image-close')?.addEventListener('click', closeImageStudio);
+imageOverlay?.addEventListener('click', (event) => {
+  if (event.target === imageOverlay) closeImageStudio();
+});
+
+imageGenerateBtn?.addEventListener('click', async () => {
+  const prompt = String(imageGeneratePromptEl?.value || '').trim();
+  if (!prompt) {
+    if (imageGenerateStatus) imageGenerateStatus.textContent = 'Describe the image first.';
+    return;
+  }
+  imageGenerateBtn.disabled = true;
+  if (imageGenerateStatus) imageGenerateStatus.textContent = 'Generating...';
+  try {
+    const result = await api('/api/images/generate', { method: 'POST', body: JSON.stringify({ prompt }) });
+    const dataUrl = String(result.image_data_url || '').trim();
+    if (!dataUrl) throw new Error('No image returned');
+    if (imageGeneratedPreview) { imageGeneratedPreview.src = dataUrl; imageGeneratedPreview.style.display = 'block'; }
+    if (imageDownloadLink) { imageDownloadLink.href = dataUrl; imageDownloadLink.style.display = 'inline-block'; }
+    if (imageGenerateStatus) imageGenerateStatus.textContent = 'Done.';
+    addImageMessage('Future', dataUrl, `Generated image for: ${prompt}`, 'future-generated.png');
+  } catch (error) {
+    if (imageGenerateStatus) imageGenerateStatus.textContent = `Failed: ${error.message}`;
+  } finally {
+    imageGenerateBtn.disabled = false;
+  }
+});
+
+function setStudioImage(dataUrl) {
+  studioImageDataUrl = dataUrl;
+  if (imageUploadPreview) { imageUploadPreview.src = dataUrl; imageUploadPreview.style.display = 'block'; }
+  imageDropzone?.classList.add('has-image');
+}
+
+imageDropzone?.addEventListener('click', () => imageFileInput?.click());
+imageDropzone?.addEventListener('dragover', (e) => e.preventDefault());
+imageDropzone?.addEventListener('drop', async (e) => {
+  e.preventDefault();
+  const file = e.dataTransfer?.files?.[0];
+  if (!file) return;
+  try { setStudioImage(await readFileAsDataUrl(file)); } catch (_) {}
+});
+imageFileInput?.addEventListener('change', async (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  try { setStudioImage(await readFileAsDataUrl(file)); } catch (_) {}
+  e.target.value = '';
+});
+document.addEventListener('paste', async (event) => {
+  if (!imageOverlay?.classList.contains('open')) return;
+  const items = event.clipboardData?.items || [];
+  const imageItem = Array.from(items).find((item) => String(item.type || '').startsWith('image/'));
+  if (!imageItem) return;
+  const file = imageItem.getAsFile();
+  if (!file) return;
+  try { setStudioImage(await readFileAsDataUrl(file)); } catch (_) {}
+});
+
+imageAnalyzeBtn?.addEventListener('click', async () => {
+  if (!studioImageDataUrl) {
+    if (imageAnalyzeStatus) imageAnalyzeStatus.textContent = 'Attach an image first.';
+    return;
+  }
+  const question = String(imageAnalyzeQuestion?.value || '').trim() || undefined;
+  imageAnalyzeBtn.disabled = true;
+  if (imageAnalyzeStatus) imageAnalyzeStatus.textContent = 'Analyzing...';
+  try {
+    const result = await api('/api/images/analyze', {
+      method: 'POST',
+      body: JSON.stringify({ image_data_url: studioImageDataUrl, question }),
+    });
+    if (imageAnalyzeStatus) imageAnalyzeStatus.textContent = result.analysis || 'No analysis returned.';
+  } catch (error) {
+    if (imageAnalyzeStatus) imageAnalyzeStatus.textContent = `Failed: ${error.message}`;
+  } finally {
+    imageAnalyzeBtn.disabled = false;
+  }
+});
+
+imageClearBtn?.addEventListener('click', () => {
+  studioImageDataUrl = '';
+  if (imageUploadPreview) { imageUploadPreview.style.display = 'none'; imageUploadPreview.src = ''; }
+  imageDropzone?.classList.remove('has-image');
+  if (imageAnalyzeStatus) imageAnalyzeStatus.textContent = '';
+  if (imageAnalyzeQuestion) imageAnalyzeQuestion.value = '';
+});
 
 document.addEventListener('click', (e) => {
   const btn = e.target.closest('.calendar-range-btn');

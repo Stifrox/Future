@@ -7,6 +7,7 @@ import re
 import base64
 import secrets
 import subprocess
+import tempfile
 import time
 import urllib.parse
 import webbrowser
@@ -58,6 +59,7 @@ from tools.integrations import (
     spotify_previous,
 )
 from chat_sessions import ChatSessionStore
+from tools import tasks as background_tasks
 
 try:
     import psutil
@@ -126,6 +128,12 @@ class SpotifyControlRequest(BaseModel):
 class ChatMessageRequest(BaseModel):
     message: str
     session_id: Optional[str] = None
+    client_time: Optional[str] = None
+
+
+class BackgroundTaskRequest(BaseModel):
+    type: str
+    payload: Dict[str, object] = {}
 
 
 class ChatSessionCreateRequest(BaseModel):
@@ -169,6 +177,10 @@ class ImageEditRequest(BaseModel):
 class TtsRequest(BaseModel):
     text: str
     voice_gender: str = "male"
+
+
+class VoiceTranscribeRequest(BaseModel):
+    audio_data_url: str
 
 
 class AnycubicSliceRequest(BaseModel):
@@ -216,6 +228,12 @@ class SelfUpdatePlanRequest(BaseModel):
     scope: str = "auto"
 
 
+class ContentRunRequest(BaseModel):
+    source_dir: Optional[str] = None
+    target_count: int = 18
+    instruction: str = ""
+
+
 class AccessPasswordRequest(BaseModel):
     password: str
 
@@ -245,11 +263,11 @@ def _image_output_dir() -> Path:
     path.mkdir(parents=True, exist_ok=True)
     return path
 
-def _chat_reply(message: str, recent_context=None) -> str:
+def _chat_reply(message: str, recent_context=None, client_time: Optional[str] = None) -> str:
     """Resolve chat handler lazily so optional config mismatches do not break API startup."""
     try:
         from webtools import handle_query as _handle_query  # Local import by design.
-        return _handle_query(message, recent_context=recent_context)
+        return _handle_query(message, recent_context=recent_context, client_time=client_time)
     except Exception:
         return "I can help with schedule, inbox, prints, and files once the model config is ready."
 
@@ -1035,6 +1053,44 @@ def image_edit(payload: ImageEditRequest) -> Dict[str, str]:
         raise HTTPException(status_code=503, detail=f"Image edit failed: {exc}") from exc
 
 
+@app.post("/api/voice/transcribe")
+def voice_transcribe(payload: VoiceTranscribeRequest) -> Dict[str, str]:
+    """Push-to-talk fallback for browsers without the Web Speech API (e.g. iOS Safari)."""
+    audio_data_url = (payload.audio_data_url or "").strip()
+    if not audio_data_url or not audio_data_url.startswith("data:audio/"):
+        raise HTTPException(status_code=400, detail="audio_data_url must be a data:audio/* URL")
+
+    client = _openai_client_from_env()
+    if not client:
+        raise HTTPException(status_code=503, detail="OpenAI transcription is not configured")
+
+    header, _, b64_data = audio_data_url.partition(",")
+    mime = header.split(";", 1)[0].replace("data:", "") or "audio/webm"
+    suffix = "." + (mime.split("/", 1)[1] if "/" in mime else "webm").split(";")[0]
+    suffix = suffix if suffix in (".webm", ".mp4", ".m4a", ".ogg", ".wav", ".mpeg", ".mp3") else ".webm"
+
+    try:
+        raw = base64.b64decode(b64_data)
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp_file:
+            tmp_file.write(raw)
+            tmp_path = Path(tmp_file.name)
+
+        try:
+            with tmp_path.open("rb") as audio_file:
+                result = client.audio.transcriptions.create(model="whisper-1", file=audio_file)
+            text = (getattr(result, "text", "") or "").strip()
+            return {"text": text}
+        finally:
+            try:
+                tmp_path.unlink(missing_ok=True)
+            except Exception:
+                pass
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=f"Voice transcription failed: {exc}") from exc
+
+
 @app.get("/api/stocks/watchlist")
 def stocks_watchlist() -> List[Dict[str, object]]:
     if trader is None:
@@ -1517,7 +1573,7 @@ def chat_message(payload: ChatMessageRequest) -> Dict[str, object]:
         if not session:
             session = CHAT_SESSIONS.create()
         recent_context = session["messages"][-CHAT_CONTEXT_MAX_LINES:] or list(CHAT_CONTEXT_LINES)
-        reply = _chat_reply(message, recent_context=recent_context)
+        reply = _chat_reply(message, recent_context=recent_context, client_time=payload.client_time)
         normalized = _normalize_chat_reply(reply)
         session = CHAT_SESSIONS.add_messages(
             session["id"], [{"role": "user", "content": message}, {"role": "assistant", "content": normalized}]
@@ -1587,6 +1643,115 @@ def self_update_execute_endpoint() -> Dict[str, object]:
     if result.get("status") != "ok":
         raise HTTPException(status_code=400, detail=str(result.get("error", "Self-update execute failed")))
     return result
+
+
+def _run_self_update_task(payload: Dict[str, object]) -> Dict[str, object]:
+    """Background handler so self-updates can be queued instead of blocking a request."""
+    plan_result = self_update_plan(
+        instruction=str(payload.get("instruction", "")),
+        target_files=list(payload.get("target_files", []) or []),
+        scope=str(payload.get("scope", "auto")),
+    )
+    if plan_result.get("status") != "ok":
+        raise RuntimeError(str(plan_result.get("error", "Self-update planning failed")))
+    return self_update_execute_latest()
+
+
+background_tasks.register_handler("self_update", _run_self_update_task)
+
+
+def _run_content_creation_task(payload: Dict[str, object]) -> Dict[str, object]:
+    from tools.content_studio import run_content_creation_batch
+    return run_content_creation_batch(payload)
+
+
+background_tasks.register_handler("instagram_batch", _run_content_creation_task)
+
+
+@app.post("/api/content/run")
+def run_content_creation(payload: ContentRunRequest = ContentRunRequest()) -> Dict[str, object]:
+    return background_tasks.enqueue("instagram_batch", {
+        "source_dir": payload.source_dir,
+        "target_count": payload.target_count,
+        "instruction": payload.instruction,
+    })
+
+
+@app.get("/api/content/browse")
+def browse_content_folders(path: str = Query(default="")) -> Dict[str, object]:
+    """List subdirectories under the user's home directory, for the content-folder picker."""
+    home = Path.home().resolve()
+    raw = (path or "").strip()
+    current = Path(raw).expanduser().resolve() if raw else home
+    if home != current and home not in current.parents:
+        raise HTTPException(status_code=400, detail="Path is outside the allowed root")
+    if not current.exists() or not current.is_dir():
+        raise HTTPException(status_code=404, detail="Directory not found")
+
+    try:
+        entries = sorted(
+            (child.name for child in current.iterdir() if child.is_dir() and not child.name.startswith(".")),
+            key=str.lower,
+        )
+    except PermissionError:
+        entries = []
+
+    parent = str(current.parent) if current != home else None
+    return {"path": str(current), "parent": parent, "folders": entries}
+
+
+@app.get("/api/content/batches")
+def list_content_batches() -> List[Dict[str, object]]:
+    from tools.content_studio import OUTPUT_ROOT
+
+    if not OUTPUT_ROOT.exists():
+        return []
+    batches = []
+    for batch_dir in sorted(OUTPUT_ROOT.iterdir(), reverse=True):
+        manifest_file = batch_dir / "manifest.json"
+        if manifest_file.exists():
+            batches.append(json.loads(manifest_file.read_text(encoding="utf-8")))
+    return batches
+
+
+@app.post("/api/content/check-approvals")
+def check_content_approvals(batch_id: str = Query(default="")) -> List[Dict[str, object]]:
+    from tools.content_studio import check_batch_approvals
+
+    return check_batch_approvals(batch_id or None)
+
+
+@app.on_event("startup")
+def _start_background_worker() -> None:
+    background_tasks.start_worker()
+
+
+@app.get("/api/chat/greeting")
+def chat_greeting(client_time: str = Query(default="")) -> Dict[str, str]:
+    """One-off, time-aware opening line generated by Future; not stored as a chat turn."""
+    try:
+        from webtools import generate_opening_greeting
+        return {"reply": generate_opening_greeting(client_time=client_time or None)}
+    except Exception:
+        return {"reply": "Hey, what are we working on?"}
+
+
+@app.post("/api/tasks/run")
+def run_background_task(payload: BackgroundTaskRequest) -> Dict[str, object]:
+    return background_tasks.enqueue(payload.type, payload.payload)
+
+
+@app.get("/api/tasks")
+def list_background_tasks() -> List[Dict[str, object]]:
+    return background_tasks.list_tasks()
+
+
+@app.get("/api/tasks/{task_id}")
+def get_background_task(task_id: str) -> Dict[str, object]:
+    task = background_tasks.get_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return task
 
 
 @app.post("/api/tts/elevenlabs")

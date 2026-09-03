@@ -1,0 +1,19 @@
+[
+  {
+    "id": "94ebcc4e0b3841c1b2329158bec2f69a",
+    "type": "instagram_batch",
+    "payload": {},
+    "status": "done",
+    "progress_current": 13,
+    "progress_total": 13,
+    "progress_message": "Finished. Results are in your email",
+    "result": {
+      "batch_id": "7a8207e295c442198de1501118919976",
+      "video_count": 13,
+      "emailed": true
+    },
+    "error": null,
+    "created_at": "2026-08-28T23:44:31.707532+00:00",
+    "updated_at": "2026-08-28T23:49:13.942224+00:00"
+  }
+]
