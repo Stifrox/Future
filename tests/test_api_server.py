@@ -4,7 +4,7 @@ import urllib.parse
 import api_server
 
 
-client = TestClient(api_server.app)
+client = TestClient(api_server.app, cookies={"future_access": "unlocked"})
 
 
 def test_health_endpoint():
@@ -27,7 +27,7 @@ def test_spotify_control_rejects_unknown_action():
 
 def test_chat_message_returns_reply(monkeypatch):
     api_server.CHAT_CONTEXT_LINES.clear()
-    monkeypatch.setattr(api_server, "_chat_reply", lambda message, recent_context=None: f"echo:{message}")
+    monkeypatch.setattr(api_server, "_chat_reply", lambda message, recent_context=None, client_time=None: f"echo:{message}")
     response = client.post("/api/chat/message", json={"message": "hello"})
     assert response.status_code == 200
     assert response.json()["reply"] == "echo:hello"
@@ -40,7 +40,7 @@ def test_chat_message_passes_recent_context(monkeypatch):
 
     captured = {}
 
-    def fake_chat_reply(message, recent_context=None):
+    def fake_chat_reply(message, recent_context=None, client_time=None):
         captured["message"] = message
         captured["recent_context"] = list(recent_context or [])
         return "ok"
@@ -290,3 +290,75 @@ def test_elevenlabs_tts_endpoint_rejects_empty_text():
     response = client.post("/api/tts/elevenlabs", json={"text": "   "})
 
     assert response.status_code == 400
+
+
+def test_vision_look_endpoint(monkeypatch):
+    import tools.vision_tool as vt
+    monkeypatch.setattr(
+        vt,
+        "look_at_this",
+        lambda user_query="Look at this", duration=5.0, cam_index=0, client_time=None: {
+            "success": True,
+            "reply": "I see a 3D printer calibration cube on the desk.",
+            "frames": ["data:image/jpeg;base64,abc123mock"],
+            "video_path": "logs/video/test.avi",
+        },
+    )
+
+    response = client.post("/api/vision/look", json={"question": "Look at this desk", "duration": 5.0})
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["success"] is True
+    assert "calibration cube" in payload["reply"]
+
+
+def test_vision_analyze_clip_endpoint(monkeypatch):
+    import tools.vision_tool as vt
+    monkeypatch.setattr(
+        vt,
+        "look_at_this",
+        lambda user_query="Look at this", provided_frames=None, client_time=None: {
+            "success": True,
+            "reply": "I see Python code on a VS Code editor window.",
+            "frames": provided_frames or [],
+            "video_path": "",
+        },
+    )
+
+    response = client.post(
+        "/api/vision/analyze-clip",
+        json={
+            "frames": ["data:image/jpeg;base64,mockframe1"],
+            "question": "Can you see the code error?",
+        },
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["success"] is True
+    assert "Python code" in payload["reply"]
+
+
+def test_vision_status_endpoint():
+    response = client.get("/api/vision/status")
+    assert response.status_code == 200
+    payload = response.json()
+    assert "opencv_available" in payload
+    assert "vision_model" in payload
+
+
+def test_vision_history_endpoint(monkeypatch):
+    import tools.memory as tm
+    monkeypatch.setattr(
+        tm,
+        "load_memory",
+        lambda: [
+            {"user": "[Visual Camera Clip at 2026-09-08 12:00:00]: Look at this", "ai": "Visual observation & memory: A green mug."},
+            {"user": "Normal question", "ai": "Normal answer"},
+        ],
+    )
+    response = client.get("/api/vision/history")
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload["history"]) == 1
+    assert "green mug" in payload["history"][0]["ai"]
+

@@ -1,1 +1,1 @@
-http://10.73.95.94:8000/dashboard
+http://192.168.56.1:8000/dashboard

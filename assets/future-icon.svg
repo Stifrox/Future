@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Future icon">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#101317"/>
+      <stop offset="100%" stop-color="#1d2329"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#8aacc4"/>
+      <stop offset="100%" stop-color="#d1993f"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <rect x="36" y="36" width="440" height="440" rx="92" fill="none" stroke="#2f3942" stroke-width="10"/>
+  <path d="M128 128h256v56H256v200h-64V184H128z" fill="url(#accent)"/>
+  <circle cx="384" cy="128" r="22" fill="#d1993f"/>
+</svg>

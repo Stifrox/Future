@@ -22,6 +22,7 @@ from tools.integrations import (
     send_gmail_message,
 )
 from tools.alpaca_trading import AutopilotPaperTrader, PaperTradingEngine, handle_trading_command
+from tools.vision_tool import look_at_this, is_vision_query
 from openai import OpenAI
 import config
 
@@ -40,7 +41,280 @@ import pyttsx3
 BASE_DIR = Path(__file__).resolve().parent
 VOSK_MODEL_PATH = BASE_DIR / "model"
 
+VOICE_GENDER = "male"
+
+def set_voice_gender(gender: str):
+    global VOICE_GENDER
+    if gender.lower() in ["male", "female"]:
+        VOICE_GENDER = gender.lower()
+        return True
+    return False
+
+def detect_voice_gender_request(text: str):
+    if not text:
+        return None
+    normalized = text.lower().strip()
+    if any(phrase in normalized for phrase in ["use female voice", "switch to female", "female voice", "use male voice", "switch to male", "male voice"]):
+        if "female" in normalized:
+            return "female"
+        elif "male" in normalized:
+            return "male"
+    return None
+
+
+VOICE_GENDER = "male"
+
+def set_voice_gender(gender: str):
+    global VOICE_GENDER
+    if gender.lower() in ["male", "female"]:
+        VOICE_GENDER = gender.lower()
+        return True
+    return False
+
+def detect_voice_gender_request(text: str):
+    if not text:
+        return None
+    normalized = text.lower().strip()
+    if any(phrase in normalized for phrase in ["use female voice", "switch to female", "female voice", "use male voice", "switch to male", "male voice"]):
+        if "female" in normalized:
+            return "female"
+        elif "male" in normalized:
+            return "male"
+    return None
+
+
+VOICE_GENDER = "male"
+
+def set_voice_gender(gender: str):
+    global VOICE_GENDER
+    if gender.lower() in ["male", "female"]:
+        VOICE_GENDER = gender.lower()
+        return True
+    return False
+
+def detect_voice_gender_request(text: str):
+    if not text:
+        return None
+    normalized = text.lower().strip()
+    if any(phrase in normalized for phrase in ["use female voice", "switch to female", "female voice", "use male voice", "switch to male", "male voice"]):
+        if "female" in normalized:
+            return "female"
+        elif "male" in normalized:
+            return "male"
+    return None
+
+
+VOICE_GENDER = "male"
+
+def set_voice_gender(gender: str):
+    global VOICE_GENDER
+    if gender.lower() in ["male", "female"]:
+        VOICE_GENDER = gender.lower()
+        return True
+    return False
+
+def detect_voice_gender_request(text: str):
+    if not text:
+        return None
+    normalized = text.lower().strip()
+    if any(phrase in normalized for phrase in ["use female voice", "switch to female", "female voice", "use male voice", "switch to male", "male voice"]):
+        if "female" in normalized:
+            return "female"
+        elif "male" in normalized:
+            return "male"
+    return None
+
+
+VOICE_GENDER = "male"
+
+def set_voice_gender(gender: str):
+    global VOICE_GENDER
+    if gender.lower() in ["male", "female"]:
+        VOICE_GENDER = gender.lower()
+        return True
+    return False
+
+def detect_voice_gender_request(text: str):
+    if not text:
+        return None
+    normalized = text.lower().strip()
+    if any(phrase in normalized for phrase in ["use female voice", "switch to female", "female voice", "use male voice", "switch to male", "male voice"]):
+        if "female" in normalized:
+            return "female"
+        elif "male" in normalized:
+            return "male"
+    return None
+
+
+VOICE_GENDER = "male"
+
+def set_voice_gender(gender: str):
+    global VOICE_GENDER
+    if gender.lower() in ["male", "female"]:
+        VOICE_GENDER = gender.lower()
+        return True
+    return False
+
+def detect_voice_gender_request(text: str):
+    if not text:
+        return None
+    normalized = text.lower().strip()
+    if any(phrase in normalized for phrase in ["use female voice", "switch to female", "female voice", "use male voice", "switch to male", "male voice"]):
+        if "female" in normalized:
+            return "female"
+        elif "male" in normalized:
+            return "male"
+    return None
+
+
+VOICE_GENDER = "male"
+
+def set_voice_gender(gender: str):
+    global VOICE_GENDER
+    if gender.lower() in ["male", "female"]:
+        VOICE_GENDER = gender.lower()
+        return True
+    return False
+
+def detect_voice_gender_request(text: str):
+    if not text:
+        return None
+    normalized = text.lower().strip()
+    if any(phrase in normalized for phrase in ["use female voice", "switch to female", "female voice", "use male voice", "switch to male", "male voice"]):
+        if "female" in normalized:
+            return "female"
+        elif "male" in normalized:
+            return "male"
+    return None
+
+
+VOICE_GENDER = "male"
+
+def set_voice_gender(gender: str):
+    global VOICE_GENDER
+    if gender.lower() in ["male", "female"]:
+        VOICE_GENDER = gender.lower()
+        return True
+    return False
+
+def detect_voice_gender_request(text: str):
+    if not text:
+        return None
+    normalized = text.lower().strip()
+    if any(phrase in normalized for phrase in ["use female voice", "switch to female", "female voice", "use male voice", "switch to male", "male voice"]):
+        if "female" in normalized:
+            return "female"
+        elif "male" in normalized:
+            return "male"
+    return None
+
+
+VOICE_GENDER = "male"
+
+def set_voice_gender(gender: str):
+    global VOICE_GENDER
+    if gender.lower() in ["male", "female"]:
+        VOICE_GENDER = gender.lower()
+        return True
+    return False
+
+def detect_voice_gender_request(text: str):
+    if not text:
+        return None
+    normalized = text.lower().strip()
+    if any(phrase in normalized for phrase in ["use female voice", "switch to female", "female voice", "use male voice", "switch to male", "male voice"]):
+        if "female" in normalized:
+            return "female"
+        elif "male" in normalized:
+            return "male"
+    return None
+
+
+VOICE_GENDER = "male"
+
+def set_voice_gender(gender: str):
+    global VOICE_GENDER
+    if gender.lower() in ["male", "female"]:
+        VOICE_GENDER = gender.lower()
+        return True
+    return False
+
+def detect_voice_gender_request(text: str):
+    if not text:
+        return None
+    normalized = text.lower().strip()
+    if any(phrase in normalized for phrase in ["use female voice", "switch to female", "female voice", "use male voice", "switch to male", "male voice"]):
+        if "female" in normalized:
+            return "female"
+        elif "male" in normalized:
+            return "male"
+    return None
+
+
+VOICE_GENDER = "male"
+
+def set_voice_gender(gender: str):
+    global VOICE_GENDER
+    if gender.lower() in ["male", "female"]:
+        VOICE_GENDER = gender.lower()
+        return True
+    return False
+
+def detect_voice_gender_request(text: str):
+    if not text:
+        return None
+    normalized = text.lower().strip()
+    if any(phrase in normalized for phrase in ["use female voice", "switch to female", "female voice", "use male voice", "switch to male", "male voice"]):
+        if "female" in normalized:
+            return "female"
+        elif "male" in normalized:
+            return "male"
+    return None
+
+
 engine = None
+VOICE_GENDER = "male"
+
+def set_voice_gender(gender: str):
+    global VOICE_GENDER
+    if gender.lower() in ["male", "female"]:
+        VOICE_GENDER = gender.lower()
+        return True
+    return False
+
+def detect_voice_gender_request(text: str):
+    if not text:
+        return None
+    normalized = text.lower().strip()
+    if any(phrase in normalized for phrase in ["use female voice", "switch to female", "female voice", "use male voice", "switch to male", "male voice"]):
+        if "female" in normalized:
+            return "female"
+        elif "male" in normalized:
+            return "male"
+    return None
+
+
+VOICE_GENDER = "male"
+
+def set_voice_gender(gender: str):
+    global VOICE_GENDER
+    if gender.lower() in ["male", "female"]:
+        VOICE_GENDER = gender.lower()
+        return True
+    return False
+
+def detect_voice_gender_request(text: str):
+    if not text:
+        return None
+    normalized = text.lower().strip()
+    if any(phrase in normalized for phrase in ["use female voice", "switch to female", "female voice", "use male voice", "switch to male", "male voice"]):
+        if "female" in normalized:
+            return "female"
+        elif "male" in normalized:
+            return "male"
+    return None
+
+
 VOICE_GENDER = "male"
 
 def set_voice_gender(gender: str):
@@ -102,7 +376,7 @@ try:
     if VOSK_MODEL_PATH.exists():
         vosk_model = Model(str(VOSK_MODEL_PATH))
 except Exception as exc:
-    print(f"⚠️ Vosk model init failed: {exc}")
+    print(f"[Warning] Vosk model init failed: {exc}")
 
 
 def _init_engine():
@@ -129,20 +403,20 @@ def _init_engine():
                             break
                 if selected_output is not None:
                     engine.AudioOutput = selected_output
-                    print(f"🔊 Using SAPI output: {selected_output.GetDescription()}")
+                    print(f"Using SAPI output: {selected_output.GetDescription()}")
             except Exception as exc:
-                print(f"⚠️ Could not switch SAPI output device: {exc}")
+                print(f"[Warning] Could not switch SAPI output device: {exc}")
 
             speech_backend = "sapi"
         except Exception as exc:
-            print(f"⚠️ SAPI voice init failed: {exc}")
+            print(f"[Warning] SAPI voice init failed: {exc}")
             try:
                 engine = pyttsx3.init()
                 engine.setProperty("rate", 170)
                 engine.setProperty("volume", 1.0)
                 speech_backend = "pyttsx3"
             except Exception as exc2:
-                print(f"⚠️ Text-to-speech init failed: {exc2}")
+                print(f"[Warning] Text-to-speech init failed: {exc2}")
                 engine = None
                 speech_backend = "unavailable"
     return speech_backend, engine
@@ -351,7 +625,7 @@ def _speak_elevenlabs(text):
         p.terminate()
         return True
     except Exception as exc:
-        print(f"⚠️ ElevenLabs TTS failed: {exc}")
+        print(f"[Warning] ElevenLabs TTS failed: {exc}")
         return False
 
 
@@ -558,9 +832,14 @@ def route_command(command, personality, memory):
     ):
         _, reply = open_slicer_app()
     elif any(keyword in command_lower for keyword in ["calendar", "google calendar", "schedule", "event", "remind", "reminder", "appointment"]):
-        reply = handle_calendar_command(command)
+        reply = handle_calendar_command(command) or generate_reply(command, personality, memory)
     elif any(keyword in command_lower for keyword in ["gmail", "inbox", "email", "mail"]):
         reply = handle_gmail_command(command)
+    elif is_vision_query(command):
+        print("Future: Looking now, show me for five seconds...")
+        speak("Looking now, show me for five seconds...")
+        vision_res = look_at_this(user_query=command, duration=5.0)
+        reply = str(vision_res.get("reply") or "I recorded what you showed me and saved it to memory.")
     else:
         reply = generate_reply(command, personality, memory)
 

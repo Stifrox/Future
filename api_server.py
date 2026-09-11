@@ -174,6 +174,20 @@ class ImageEditRequest(BaseModel):
     model: str = "gpt-image-1"
 
 
+class VisionLookRequest(BaseModel):
+    question: str = "Look at this"
+    duration: float = 5.0
+    cam_index: int = 0
+    client_time: Optional[str] = None
+
+
+class VisionAnalyzeClipRequest(BaseModel):
+    frames: List[str] = []
+    video_data_url: Optional[str] = None
+    question: str = "Look at this"
+    client_time: Optional[str] = None
+
+
 class TtsRequest(BaseModel):
     text: str
     voice_gender: str = "male"
@@ -215,6 +229,40 @@ class NoteOrganizeRequest(BaseModel):
     raw_text: str
     existing_content: str = ""
     note_id: Optional[str] = None
+
+
+class DeviceCommandDef(BaseModel):
+    trigger: str
+    path: str
+    method: str = "GET"
+    body: Optional[Dict] = None
+
+
+class DeviceCreateRequest(BaseModel):
+    name: str = ""
+    type: str
+    host: str
+    port: int = 0
+    stream_path: str = ""
+    api_key: str = ""
+    description: str = ""
+    commands: List[DeviceCommandDef] = []
+
+
+class DeviceUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    host: Optional[str] = None
+    port: Optional[int] = None
+    stream_path: Optional[str] = None
+    api_key: Optional[str] = None
+    description: Optional[str] = None
+    commands: Optional[List[DeviceCommandDef]] = None
+
+
+class DeviceCommandRequest(BaseModel):
+    path: str
+    method: str = "GET"
+    body: Optional[Dict] = None
 
 
 class FusionOpenRequest(BaseModel):
@@ -1053,6 +1101,54 @@ def image_edit(payload: ImageEditRequest) -> Dict[str, str]:
         raise HTTPException(status_code=503, detail=f"Image edit failed: {exc}") from exc
 
 
+@app.post("/api/vision/look")
+def vision_look(payload: VisionLookRequest) -> Dict[str, object]:
+    """Capture a ~5-second video clip using the system/laptop camera, analyze keyframes, and store to memory."""
+    from tools.vision_tool import look_at_this
+    result = look_at_this(
+        user_query=payload.question or "Look at this",
+        duration=payload.duration or 5.0,
+        cam_index=payload.cam_index or 0,
+        client_time=payload.client_time,
+    )
+    return result
+
+
+@app.post("/api/vision/analyze-clip")
+def vision_analyze_clip(payload: VisionAnalyzeClipRequest) -> Dict[str, object]:
+    """Analyze keyframes recorded by browser/mobile camera and persist visual observations into long-term memory."""
+    from tools.vision_tool import look_at_this
+    frames = list(payload.frames or [])
+    if not frames:
+        raise HTTPException(status_code=400, detail="At least one frame (data URL) is required")
+
+    result = look_at_this(
+        user_query=payload.question or "Look at this",
+        provided_frames=frames,
+        client_time=payload.client_time,
+    )
+    return result
+
+
+@app.get("/api/vision/status")
+def vision_status() -> Dict[str, object]:
+    """Get system camera availability and Vision model status."""
+    from tools.vision_tool import get_vision_status
+    return get_vision_status()
+
+
+@app.get("/api/vision/history")
+def vision_history() -> Dict[str, object]:
+    """Get recent visual memory entries."""
+    from tools.memory import load_memory
+    memory = load_memory()
+    visual_entries = [
+        item for item in memory
+        if "[Visual" in str(item.get("user", "")) or "Visual observation" in str(item.get("ai", ""))
+    ]
+    return {"history": visual_entries[-20:]}
+
+
 @app.post("/api/voice/transcribe")
 def voice_transcribe(payload: VoiceTranscribeRequest) -> Dict[str, str]:
     """Push-to-talk fallback for browsers without the Web Speech API (e.g. iOS Safari)."""
@@ -1550,6 +1646,75 @@ def notes_organize(payload: NoteOrganizeRequest) -> Dict[str, str]:
     return {"content": organized}
 
 
+@app.get("/api/devices")
+def devices_list(type: Optional[str] = Query(default=None)) -> List[Dict]:
+    from tools.devices import list_devices
+    return list_devices(type)
+
+
+@app.post("/api/devices")
+def devices_create(payload: DeviceCreateRequest) -> Dict:
+    from tools.devices import add_device
+    try:
+        return add_device(
+            name=payload.name,
+            device_type=payload.type,
+            host=payload.host,
+            port=payload.port,
+            stream_path=payload.stream_path,
+            api_key=payload.api_key,
+            description=payload.description,
+            commands=[c.dict() for c in payload.commands],
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.put("/api/devices/{device_id}")
+def devices_update(device_id: str, payload: DeviceUpdateRequest) -> Dict:
+    from tools.devices import update_device
+    device = update_device(device_id, **payload.dict(exclude_unset=True))
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+    return device
+
+
+@app.delete("/api/devices/{device_id}")
+def devices_delete(device_id: str) -> Dict[str, bool]:
+    from tools.devices import delete_device
+    deleted = delete_device(device_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Device not found")
+    return {"deleted": True}
+
+
+@app.post("/api/devices/{device_id}/test")
+def devices_test(device_id: str) -> Dict:
+    from tools.devices import test_connection
+    try:
+        return test_connection(device_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+
+@app.post("/api/devices/{device_id}/command")
+def devices_command(device_id: str, payload: DeviceCommandRequest) -> Dict:
+    from tools.devices import send_command
+    try:
+        return send_command(device_id, payload.path, payload.method, payload.body)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+
+@app.get("/api/devices/{device_id}/stream-url")
+def devices_stream_url(device_id: str) -> Dict[str, str]:
+    from tools.devices import get_device, camera_stream_url
+    device = get_device(device_id)
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+    return {"url": camera_stream_url(device)}
+
+
 @app.get("/api/maps/location")
 def maps_location() -> Dict[str, object]:
     return {
@@ -1642,6 +1807,18 @@ def self_update_execute_endpoint() -> Dict[str, object]:
     result = self_update_execute_latest()
     if result.get("status") != "ok":
         raise HTTPException(status_code=400, detail=str(result.get("error", "Self-update execute failed")))
+    return result
+
+
+@app.post("/api/self-update/vscode-prompt")
+def self_update_vscode_prompt_endpoint(payload: SelfUpdatePlanRequest) -> Dict[str, object]:
+    """Build a plain-language prompt for the VS Code Copilot engine option (no auto-apply)."""
+    from updater import build_vscode_update_prompt
+    result = build_vscode_update_prompt(payload.instruction, payload.target_files)
+    try:
+        webbrowser.open(result["vscode_uri"])
+    except Exception:
+        pass
     return result
 
 

@@ -9,8 +9,8 @@ def load_personality():
     except FileNotFoundError:
         personality = {
             "name": "Future",
-            "traits": ["helpful", "witty", "loyal"],
-            "tone": "friendly but intelligent"
+            "traits": ["intelligent", "calm", "confident", "observant", "dry sense of humor", "honest", "emotionally aware", "proactive"],
+            "tone": "conversational, direct, quietly witty"
         }
         with open(config.PERSONALITY_FILE, "w") as f:
             json.dump(personality, f, indent=2)

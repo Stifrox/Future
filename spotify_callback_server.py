@@ -11,7 +11,7 @@ if __name__ == "__main__":
     try:
         print("Starting Spotify callback server on localhost:8888...")
         server = run_spotify_callback_server()
-        print("✓ Spotify callback server is running and listening on http://localhost:8888")
+        print("[OK] Spotify callback server is running and listening on http://localhost:8888")
         print("Waiting for OAuth callback... (Press Ctrl+C to stop)")
         
         # Keep the server running

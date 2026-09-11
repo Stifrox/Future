@@ -218,6 +218,23 @@ def test_handle_query_routes_pending_calendar_followup(monkeypatch):
     assert "added to your calendar" in reply.lower()
 
 
+def test_handle_query_routes_look_at_this_intent(monkeypatch):
+    monkeypatch.setattr(webtools, "_client", None)
+    monkeypatch.setattr(
+        webtools,
+        "look_at_this",
+        lambda user_query="Look at this", duration=5.0: {
+            "success": True,
+            "reply": "I see a blue multimeter measuring 12.4 volts.",
+        },
+    )
+
+    reply = webtools.handle_query("hey future look at this")
+
+    assert "blue multimeter" in reply
+
+
+
 def test_handle_query_routes_self_update_intent(monkeypatch):
     monkeypatch.setattr(webtools, "_client", None)
     monkeypatch.setattr(
@@ -225,13 +242,13 @@ def test_handle_query_routes_self_update_intent(monkeypatch):
         "self_update_plan",
         lambda instruction, target_files=None, scope="auto": {
             "status": "ok",
-            "scope": "small_edit",
+            "scope": "full_rewrite",
             "model": "claude-sonnet-4-5",
             "plan": {"summary": "Add docstring", "risk_level": "low"},
         },
     )
 
-    reply = webtools.handle_query("run self update: small edit add docstring to api_server.py")
+    reply = webtools.handle_query("run self update: rewrite add docstring to api_server.py")
 
     assert "self-update plan ready" in reply.lower()
     assert "claude-sonnet-4-5" in reply

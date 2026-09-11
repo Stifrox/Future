@@ -1,6 +1,8 @@
 import json
 import os
 import re
+import subprocess
+import urllib.parse
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -204,6 +206,14 @@ def _safe_workspace_file(path_text: str) -> Path:
 def _apply_insert_line(path: Path, line_number: int, content: str) -> Dict[str, object]:
     lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
     idx = max(0, min(int(line_number) - 1, len(lines)))
+    normalized_content = str(content).strip()
+
+    # Guard against the same line being inserted twice near the same spot (the plan
+    # generator has occasionally repeated an edit, duplicating whole function bodies).
+    window = lines[max(0, idx - 3) : idx + 3]
+    if normalized_content and any(line.strip() == normalized_content for line in window):
+        return {"path": str(path), "operation": "insert_line", "line": idx + 1, "duplicate": True}
+
     lines.insert(idx, str(content))
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return {"path": str(path), "operation": "insert_line", "line": idx + 1}
@@ -261,7 +271,10 @@ def _execute_edits(plan_payload: Dict[str, object]) -> Dict[str, object]:
                     int(change.get("line_number", 1) or 1),
                     str(change.get("content", "")),
                 )
-                applied.append(result)
+                if result.pop("duplicate", False):
+                    skipped.append({"path": str(target), "reason": "Line already present near target - skipped duplicate insert."})
+                else:
+                    applied.append(result)
                 continue
             if change_type == "replace_text":
                 result = _apply_replace_text(
@@ -413,3 +426,70 @@ def self_update_execute_latest() -> Dict[str, object]:
         }
     )
     return result
+
+
+_VSCODE_BRIDGE_CACHE = {"checked_at": 0.0, "installed": False}
+
+
+def _vscode_bridge_installed() -> bool:
+    """Cached check (60s) for whether the future-self-update-bridge extension is installed."""
+    import time
+
+    now = time.time()
+    if now - _VSCODE_BRIDGE_CACHE["checked_at"] < 60:
+        return _VSCODE_BRIDGE_CACHE["installed"]
+
+    installed = False
+    try:
+        result = subprocess.run(
+            ["code", "--list-extensions"], capture_output=True, text=True, timeout=5
+        )
+        installed = "future-local.future-self-update-bridge" in (result.stdout or "").lower()
+    except Exception:
+        installed = False
+
+    _VSCODE_BRIDGE_CACHE["checked_at"] = now
+    _VSCODE_BRIDGE_CACHE["installed"] = installed
+    return installed
+
+
+def build_vscode_update_prompt(instruction: str, target_files: Optional[List[str]] = None) -> Dict[str, object]:
+    """Build a plain-language prompt and a vscode:// URI that opens Copilot Chat with that
+
+    prompt pre-filled and auto-submitted, via the local "Future Self-Update Bridge" VS Code
+    extension (vscode-extension/future-self-update-bridge). If that extension isn't
+    installed, VS Code will just open to the workspace and the prompt still comes back in
+    the response so it can be pasted manually."""
+    instruction_text = (instruction or "").strip()
+    files = [f.strip() for f in (target_files or []) if f.strip()]
+
+    prompt_lines = [
+        "Future self-update request (reviewed by me before applying):",
+        "",
+        instruction_text or "(no instruction provided)",
+    ]
+    if files:
+        prompt_lines += ["", "Relevant files:", *[f"- {f}" for f in files]]
+    prompt_lines += [
+        "",
+        "Make the smallest safe change that accomplishes this, matching the existing code style. "
+        "Do not duplicate existing functions or insert content that is already present. "
+        "After editing, briefly summarize what changed.",
+    ]
+    prompt = "\n".join(prompt_lines)
+
+    if _vscode_bridge_installed():
+        encoded_prompt = urllib.parse.quote(prompt, safe="")
+        vscode_uri = f"vscode://future-local.future-self-update-bridge/update?prompt={encoded_prompt}"
+        return {"status": "ok", "prompt": prompt, "vscode_uri": vscode_uri, "target_files": files, "auto_submit": True}
+
+    root = Path.cwd().resolve()
+    target = root
+    if files:
+        candidate = (root / files[0]).resolve()
+        if root == candidate or root in candidate.parents:
+            target = candidate
+    path_str = str(target).replace("\\", "/") if os.name == "nt" else str(target)
+    vscode_uri = f"vscode://file/{path_str}"
+    return {"status": "ok", "prompt": prompt, "vscode_uri": vscode_uri, "target_files": files, "auto_submit": False}
+

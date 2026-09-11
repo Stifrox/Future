@@ -16,9 +16,34 @@ function Ensure-RuntimePython {
   }
 
   Write-Output 'Creating FUTURE runtime environment...'
-  & py -3.14 -m venv $runtimeVenv
+  $pythonVersions = @('3.14', '3.13', '3.12', '3.11', '3.10')
+  $selectedVersion = $null
+  $pythonLauncher = $null
+  $registeredVersions = [string](& py --list 2>$null)
+  foreach ($version in $pythonVersions) {
+    if ($registeredVersions -match [regex]::Escape($version)) {
+      $selectedVersion = $version
+      $pythonLauncher = 'py'
+      break
+    }
+  }
+  if (-not $selectedVersion -and (Get-Command python -ErrorAction SilentlyContinue)) {
+    $selectedVersion = [string](& python -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
+    $pythonLauncher = 'python'
+  }
+  if (-not $selectedVersion) {
+    Write-Error 'No supported Python interpreter was found. Install Python 3.10 or newer.'
+    exit 1
+  }
+
+  Write-Output "Using Python $selectedVersion for FUTURE runtime."
+  if ($pythonLauncher -eq 'py') {
+    & py -$selectedVersion -m venv $runtimeVenv
+  } else {
+    & python -m venv $runtimeVenv
+  }
   if ($LASTEXITCODE -ne 0 -or -not (Test-Path $runtimePython)) {
-    Write-Error 'Failed to create runtime environment with py -3.14.'
+    Write-Error "Failed to create runtime environment with Python $selectedVersion."
     exit 1
   }
 }
@@ -160,8 +185,9 @@ if ($listener) {
 
   if ($cmd -match 'uvicorn\s+api_server:app') {
     try {
+      $healthCheck = Invoke-WebRequest -Uri $healthUrl -UseBasicParsing -TimeoutSec 2 -ErrorAction Stop
       $authCheck = Invoke-WebRequest -Uri 'http://127.0.0.1:8000/api/auth/status' -UseBasicParsing -TimeoutSec 2 -ErrorAction Stop
-      if ($authCheck.StatusCode -eq 200) {
+      if ($healthCheck.StatusCode -eq 200 -and $authCheck.StatusCode -eq 200) {
         if (-not $NoDashboard) {
           Open-DashboardWindow -Url $dashboardUrl
         }

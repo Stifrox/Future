@@ -1050,6 +1050,110 @@
     min-height:16px;
   }
 
+  .vision-overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(5,6,7,0.72);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    z-index:1150;
+  }
+  .vision-overlay.open{ display:flex; }
+  .vision-modal{
+    width:560px;
+    max-width:94vw;
+    max-height:90vh;
+    overflow-y:auto;
+    background:var(--bg-panel);
+    border:1px solid var(--border-bright);
+    border-radius:var(--radius-m);
+    box-shadow:0 24px 70px rgba(0,0,0,0.6);
+  }
+  .vision-body{
+    padding:14px;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+  }
+  .vision-viewfinder{
+    position:relative;
+    width:100%;
+    aspect-ratio:4/3;
+    max-height:340px;
+    background:#080a0d;
+    border:1px solid var(--border);
+    border-radius:var(--radius-s);
+    overflow:hidden;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .vision-viewfinder video{
+    width:100%;
+    height:100%;
+    object-fit:cover;
+  }
+  .vision-placeholder{
+    position:absolute;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    color:var(--text-3);
+  }
+  .vision-countdown-badge{
+    position:absolute;
+    top:10px;
+    right:10px;
+    background:rgba(189,91,79,0.9);
+    color:#fff;
+    font-family:var(--font-mono);
+    font-size:11.5px;
+    font-weight:600;
+    padding:4px 10px;
+    border-radius:20px;
+    display:flex;
+    align-items:center;
+    gap:6px;
+    box-shadow:0 2px 8px rgba(0,0,0,0.4);
+    backdrop-filter:blur(4px);
+    z-index:5;
+  }
+  .vision-rec-dot{
+    width:8px;
+    height:8px;
+    border-radius:50%;
+    background:#fff;
+    display:inline-block;
+    animation:pulse 1s infinite;
+  }
+  .vision-field input{
+    width:100%;
+    background:var(--bg-inset);
+    border:1px solid var(--border);
+    border-radius:var(--radius-s);
+    padding:9px 10px;
+    color:var(--text-1);
+    font-size:12px;
+    font-family:var(--font-mono);
+  }
+  .vision-field input:focus{
+    outline:none;
+    border-color:var(--steel-dim);
+  }
+  .vision-status{
+    font-size:11.5px;
+    color:var(--text-2);
+    min-height:16px;
+  }
+  .vision-actions{
+    display:flex;
+    justify-content:space-between;
+    padding:10px 14px 14px;
+    border-top:1px solid var(--border);
+  }
+
   .content-overlay{
     position:fixed;
     inset:0;
@@ -1363,6 +1467,66 @@
   }
   .connect-btn.connected{ color:var(--green); border-color:rgba(111,166,119,0.35); }
   .settings-actions{ display:flex; gap:10px; justify-content:flex-end; padding:14px 16px; border-top:1px solid var(--border); }
+  .device-list{ display:flex; flex-direction:column; gap:8px; margin-bottom:10px; }
+  .device-row{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    padding:9px 11px;
+    background:var(--bg-inset);
+    border:1px solid var(--border);
+    border-radius:var(--radius-s);
+  }
+  .device-row .dv-info{ display:flex; flex-direction:column; gap:2px; min-width:0; }
+  .device-row .dv-name{ font-size:12.5px; color:var(--text-1); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .device-row .dv-meta{ font-size:10px; font-family:var(--font-mono); color:var(--text-3); }
+  .device-row .dv-actions{ display:flex; align-items:center; gap:6px; flex-shrink:0; }
+  .device-status-dot{ width:8px; height:8px; border-radius:50%; background:var(--text-3); flex-shrink:0; }
+  .device-status-dot.online{ background:var(--green); }
+  .device-status-dot.offline{ background:#c0685f; }
+  .device-add-row{ display:flex; gap:8px; }
+  .device-add-row .btn{ flex:1; }
+  .command-row{ display:flex; gap:6px; align-items:center; }
+  .command-row input{
+    background:var(--bg-inset); border:1px solid var(--border); border-radius:var(--radius-s);
+    padding:7px 8px; color:var(--text-1); font-family:var(--font-mono); font-size:11px;
+  }
+  .command-row input.cmd-trigger{ flex:1.2; }
+  .command-row input.cmd-path{ flex:1; }
+  .command-row select.cmd-method{
+    background:var(--bg-inset); border:1px solid var(--border); border-radius:var(--radius-s);
+    color:var(--text-1); font-family:var(--font-mono); font-size:11px; padding:7px 4px;
+  }
+  .command-row .icon-btn{ width:26px; height:26px; flex-shrink:0; }
+  .wizard-overlay{
+    position:fixed; inset:0;
+    background:rgba(5,6,7,0.6);
+    display:none;
+    align-items:center; justify-content:center;
+    z-index:1100;
+  }
+  .wizard-overlay.open{ display:flex; }
+  .wizard-modal{
+    width:460px; max-width:92vw; max-height:88vh; overflow-y:auto;
+    background:var(--bg-panel);
+    border:1px solid var(--border-bright);
+    border-radius:var(--radius-m);
+    box-shadow:0 20px 60px rgba(0,0,0,0.5);
+  }
+  .wizard-modal .panel-head{ padding:14px 16px; }
+  .wizard-body{ padding:16px; display:flex; flex-direction:column; gap:14px; }
+  .wizard-steps{ display:flex; flex-direction:column; gap:10px; counter-reset: wizard-step; }
+  .wizard-step{ display:flex; gap:10px; font-size:12px; color:var(--text-2); line-height:1.5; }
+  .wizard-step .num{
+    counter-increment: wizard-step;
+    flex-shrink:0; width:20px; height:20px; border-radius:50%;
+    background:var(--bg-inset); border:1px solid var(--border-bright);
+    display:flex; align-items:center; justify-content:center;
+    font-family:var(--font-label); font-size:10px; color:var(--text-1);
+  }
+  .wizard-step .num::before{ content: counter(wizard-step); }
+  .wizard-test-result{ font-size:11px; font-family:var(--font-mono); color:var(--text-2); padding:8px 10px; background:var(--bg-inset); border:1px solid var(--border); border-radius:var(--radius-s); display:none; white-space:pre-wrap; max-height:220px; overflow-y:auto; }
+  .wizard-test-result.show{ display:block; }
+  .wizard-test-result.ok{ color:var(--green); }
+  .wizard-test-result.fail{ color:#c0685f; }
   .btn{
     font-family:var(--font-label); font-size:11px; letter-spacing:1px;
     padding:9px 16px; border-radius:var(--radius-s); border:1px solid var(--border-bright);
@@ -1759,8 +1923,10 @@
 
       <form class="chat-input-row" id="chat-form">
         <input type="text" id="chat-input" placeholder="Message Future..." autocomplete="off">
+        <button type="button" class="chat-image" id="chat-vision-look" title="Look at this (5s camera video & memory)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button>
         <button type="button" class="chat-image" id="chat-image-open" title="Upload image"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-6 6-3-3-4 4"/></svg></button>
         <button type="button" class="chat-image" id="chat-image-generate" title="Generate image"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M18.4 5.6l-2.8 2.8M8.4 15.6l-2.8 2.8"/></svg></button>
+        <button type="button" class="chat-image" id="chat-self-update-open" title="Run a self-update"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg></button>
         <input type="file" id="chat-image-picker" accept="image/*" style="display:none;">
         <button type="button" class="chat-mic-lock" id="chat-mic-lock" title="Voice lock off"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 14a3 3 0 0 0 3-3V7a3 3 0 1 0-6 0v4a3 3 0 0 0 3 3Z"/><path d="M19 11a7 7 0 0 1-14 0"/><path d="M12 18v4"/><path d="M8 22h8"/></svg></button>
         <button type="submit" class="chat-send"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/></svg></button>
@@ -1958,10 +2124,115 @@
         </div>
         <div class="hint">Connection state is expected to live on your backend (OAuth tokens etc). These buttons just call your backend's connect endpoints - wire them up in the JS "Settings.connect()" stub.</div>
       </div>
+      <div class="settings-group">
+        <label>WiFi devices</label>
+        <div class="device-list" id="device-list"><div class="hint">No devices added yet.</div></div>
+        <div class="device-add-row">
+          <button class="btn" id="device-add-pi">+ Raspberry Pi</button>
+          <button class="btn" id="device-add-esp32">+ ESP32</button>
+        </div>
+        <div class="hint">Connect Future to a Raspberry Pi camera or an ESP32 board over your home WiFi. Both devices must be on the same network as this server.</div>
+      </div>
     </div>
     <div class="settings-actions">
       <button class="btn" onclick="Settings.close()">Cancel</button>
       <button class="btn primary" onclick="Settings.save()">Apply</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= DEVICE CONNECTION WIZARD ================= -->
+<div class="wizard-overlay" id="wizard-overlay">
+  <div class="wizard-modal">
+    <div class="panel-head">
+      <div class="panel-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 12.55a11 11 0 0 1 14.08 0M1.42 9a16 16 0 0 1 21.16 0M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/></svg>
+        <span id="wizard-title">Add Device</span>
+      </div>
+      <button class="icon-btn" onclick="DeviceWizard.close()" style="width:28px;height:28px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="wizard-body">
+      <div class="wizard-steps" id="wizard-steps"></div>
+      <div class="settings-group">
+        <label>Device name</label>
+        <input type="text" id="wizard-name" placeholder="e.g. Garage Camera">
+      </div>
+      <div class="settings-group">
+        <label>Description</label>
+        <input type="text" id="wizard-description" placeholder="e.g. Camera pointed at the garage side door">
+        <div class="hint">Future uses this to figure out which device you mean, so be specific about what it is and where it is (or what it does).</div>
+      </div>
+      <div class="settings-group">
+        <label>IP address</label>
+        <input type="text" id="wizard-host" placeholder="192.168.1.50">
+      </div>
+      <div class="settings-group">
+        <label>Port</label>
+        <input type="number" id="wizard-port" placeholder="8080">
+      </div>
+      <div class="settings-group" id="wizard-stream-group">
+        <label>Camera stream path</label>
+        <input type="text" id="wizard-stream-path" placeholder="/stream.mjpg">
+        <div class="hint">The MJPEG/HTTP path your Pi camera server exposes (e.g. mjpg-streamer's default is /stream.mjpg).</div>
+      </div>
+      <div class="settings-group">
+        <label>API key / token (optional)</label>
+        <input type="text" id="wizard-api-key" placeholder="Only if your device requires auth">
+      </div>
+      <div class="settings-group" id="wizard-commands-group">
+        <label>Voice commands</label>
+        <div class="device-list" id="wizard-commands-list"></div>
+        <button class="btn" id="wizard-add-command" type="button">+ Add command</button>
+        <div class="hint">Map a phrase to the HTTP endpoint your ESP32 exposes, e.g. trigger "close the hand" -> path /hand/close. Say that phrase to Future and it will send the request to this device.</div>
+      </div>
+      <div class="wizard-test-result" id="wizard-test-result"></div>
+    </div>
+    <div class="settings-actions">
+      <button class="btn" id="wizard-test-btn">Test Connection</button>
+      <button class="btn" onclick="DeviceWizard.close()">Cancel</button>
+      <button class="btn primary" id="wizard-save-btn">Save Device</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= SELF-UPDATE MODAL ================= -->
+<div class="wizard-overlay" id="self-update-overlay">
+  <div class="wizard-modal">
+    <div class="panel-head">
+      <div class="panel-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+        Self-Update
+      </div>
+      <button class="icon-btn" onclick="SelfUpdateModal.close()" style="width:28px;height:28px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="wizard-body">
+      <div class="settings-group">
+        <label>What should Future update?</label>
+        <textarea id="self-update-instruction" rows="4" placeholder="e.g. make the printer status widget refresh every 10 seconds instead of 30" style="width:100%;background:var(--bg-inset);border:1px solid var(--border);border-radius:var(--radius-s);padding:9px 11px;color:var(--text-1);font-family:var(--font-mono);font-size:12.5px;resize:vertical;"></textarea>
+      </div>
+      <div class="settings-group">
+        <label>Engine</label>
+        <div class="connections">
+          <div class="connection-row">
+            <span class="cn">Claude (plans and applies the edit automatically)</span>
+            <input type="radio" name="self-update-engine" value="claude" checked>
+          </div>
+          <div class="connection-row">
+            <span class="cn">VS Code (opens Copilot Chat with the request pre-filled and submitted)</span>
+            <input type="radio" name="self-update-engine" value="vscode">
+          </div>
+        </div>
+        <div class="hint">The VS Code option requires the local "Future Self-Update Bridge" extension (vscode-extension/future-self-update-bridge) - it opens Copilot Chat with the request already typed in and submitted. Without that extension installed, it falls back to just opening VS Code with the prompt shown here to paste manually.</div>
+      </div>
+      <div class="wizard-test-result" id="self-update-result"></div>
+    </div>
+    <div class="settings-actions">
+      <button class="btn" onclick="SelfUpdateModal.close()">Close</button>
+      <button class="btn primary" id="self-update-execute-btn">Execute</button>
     </div>
   </div>
 </div>
@@ -2036,6 +2307,50 @@
   </div>
 </div>
 
+<!-- ================= VISION / CAMERA OVERLAY ================= -->
+<div class="vision-overlay" id="vision-overlay">
+  <div class="vision-modal">
+    <div class="panel-head">
+      <div class="panel-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        Future Vision
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <button class="icon-btn" id="vision-flip-cam" style="width:28px;height:28px;" title="Switch camera">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 10c0-4.418-3.582-8-8-8s-8 3.582-8 8c0 2.21 1.05 4.17 2.68 5.46L4 20h6v-6l-2.4 2.4C6.27 15.22 5.5 13.72 5.5 12c0-3.59 2.91-6.5 6.5-6.5s6.5 2.91 6.5 6.5c0 1.72-.77 3.22-2.1 4.4L15 14v6h6l-2.68-4.54C19.95 14.17 21 12.21 21 10z"/></svg>
+        </button>
+        <button class="icon-btn" id="vision-close" style="width:28px;height:28px;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="vision-body">
+      <div class="vision-viewfinder">
+        <video id="vision-video" playsinline autoplay muted></video>
+        <canvas id="vision-canvas" style="display:none;"></canvas>
+        <div class="vision-countdown-badge" id="vision-countdown-badge" style="display:none;">
+          <span class="vision-rec-dot"></span>
+          <span id="vision-countdown-text">Recording 5s...</span>
+        </div>
+        <div class="vision-placeholder" id="vision-placeholder">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" width="48" height="48"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          <div style="font-size:12px;color:var(--text-2);margin-top:8px;">Ready to look through camera</div>
+        </div>
+      </div>
+      <div class="vision-field" style="margin-top:10px;">
+        <input type="text" id="vision-prompt" placeholder="Say or type what you want Future to look for (optional)" value="Look at this and tell me what you see">
+      </div>
+      <div class="vision-status" id="vision-status">Click "Record 5s Clip" to show Future what is on your screen or in front of your camera.</div>
+    </div>
+    <div class="vision-actions">
+      <button class="btn" id="vision-cancel">Cancel</button>
+      <button class="btn primary" id="vision-start-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" style="margin-right:4px;"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4" fill="currentColor"/></svg>
+        Record 5s Clip & Remember
+      </button>
+    </div>
+  </div>
+</div>
 
 <!-- ================= IMAGE STUDIO MODAL ================= -->
 <div class="image-overlay" id="image-overlay">
@@ -3035,7 +3350,7 @@ function attachPendingChatImage(dataUrl, sourceLabel = 'image') {
   pendingChatImageDataUrl = String(dataUrl || '');
   pendingChatImageLabel = sourceLabel;
   if (!pendingChatImageDataUrl) return;
-  addMessage('Future', `Image attached from ${sourceLabel}. Say "modify this image to ..." or "analyze this image".`);
+  analyzePendingImageInline('Describe what is in this image and anything notable about it.');
 }
 
 function addImageMessage(who, dataUrl, caption = '', downloadName = 'future-image.png') {
@@ -3449,6 +3764,7 @@ function appendPlainBubble(container, plainText) {
 function formatInlineMarkdown(text) {
   let html = esc(text || '');
   html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
   return html;
 }
 
@@ -3891,6 +4207,13 @@ chatForm.addEventListener('submit', (e) => {
   const val = chatInput.value.trim();
   if (!val) return;
 
+  if (looksLikeSelfUpdateIntent(val)) {
+    chatInput.value = '';
+    addMessage('You', val);
+    SelfUpdateModal.open(val);
+    return;
+  }
+
   const imagePrompt = parseImageGeneratePrompt(val);
   if (imagePrompt) {
     chatInput.value = '';
@@ -4130,6 +4453,208 @@ imageClearBtn?.addEventListener('click', () => {
   if (imageAnalyzeQuestion) imageAnalyzeQuestion.value = '';
 });
 
+// ================= VISION / CAMERA (5-second look-at-this with video & memory) =================
+const VisionController = {
+  overlay: document.getElementById('vision-overlay'),
+  video: document.getElementById('vision-video'),
+  canvas: document.getElementById('vision-canvas'),
+  placeholder: document.getElementById('vision-placeholder'),
+  countdownBadge: document.getElementById('vision-countdown-badge'),
+  countdownText: document.getElementById('vision-countdown-text'),
+  promptInput: document.getElementById('vision-prompt'),
+  statusEl: document.getElementById('vision-status'),
+  startBtn: document.getElementById('vision-start-btn'),
+  flipBtn: document.getElementById('vision-flip-cam'),
+  stream: null,
+  facingMode: 'user',
+  isRecording: false,
+
+  async open(initialPrompt = '') {
+    if (initialPrompt && this.promptInput) {
+      this.promptInput.value = initialPrompt;
+    }
+    this.overlay?.classList.add('open');
+    await this.startStream();
+  },
+
+  close() {
+    this.stopStream();
+    this.isRecording = false;
+    if (this.countdownBadge) this.countdownBadge.style.display = 'none';
+    if (this.startBtn) this.startBtn.disabled = false;
+    this.overlay?.classList.remove('open');
+  },
+
+  async startStream() {
+    this.stopStream();
+    if (this.statusEl) this.statusEl.textContent = 'Opening camera...';
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Camera access is not supported in this browser environment.');
+      }
+      this.stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: this.facingMode,
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+        },
+        audio: false,
+      });
+      if (this.video) {
+        this.video.srcObject = this.stream;
+        await this.video.play();
+        if (this.placeholder) this.placeholder.style.display = 'none';
+      }
+      if (this.statusEl) this.statusEl.textContent = 'Camera active. Point at what you want Future to see and press "Record 5s Clip".';
+    } catch (err) {
+      console.warn('Browser webcam error:', err);
+      if (this.placeholder) this.placeholder.style.display = 'flex';
+      if (this.statusEl) {
+        this.statusEl.textContent = 'Browser camera access unavailable. Future can also capture from the host laptop camera directly.';
+      }
+    }
+  },
+
+  stopStream() {
+    if (this.stream) {
+      this.stream.getTracks().forEach((track) => track.stop());
+      this.stream = null;
+    }
+    if (this.video) {
+      this.video.srcObject = null;
+    }
+  },
+
+  async flipCamera() {
+    this.facingMode = this.facingMode === 'user' ? 'environment' : 'user';
+    await this.startStream();
+  },
+
+  captureCurrentFrame() {
+    if (!this.video || !this.canvas) return null;
+    const v = this.video;
+    if (v.videoWidth === 0 || v.videoHeight === 0) return null;
+    this.canvas.width = Math.min(v.videoWidth, 640);
+    this.canvas.height = Math.round(v.videoHeight * (this.canvas.width / v.videoWidth));
+    const ctx = this.canvas.getContext('2d');
+    ctx.drawImage(v, 0, 0, this.canvas.width, this.canvas.height);
+    return this.canvas.toDataURL('image/jpeg', 0.85);
+  },
+
+  async recordAndAnalyze() {
+    if (this.isRecording) return;
+    this.isRecording = true;
+    if (this.startBtn) this.startBtn.disabled = true;
+
+    const question = String(this.promptInput?.value || '').trim() || 'Look at this and tell me what you see';
+
+    // If browser webcam stream is active, record keyframes across 5 seconds
+    if (this.stream && this.video && this.video.videoWidth > 0) {
+      if (this.countdownBadge) this.countdownBadge.style.display = 'flex';
+      if (this.statusEl) this.statusEl.textContent = 'Future is observing what you show for 5 seconds...';
+
+      const keyframes = [];
+      let secondsLeft = 5;
+
+      const timer = setInterval(() => {
+        secondsLeft -= 1;
+        if (this.countdownText) {
+          this.countdownText.textContent = `Recording ${Math.max(1, secondsLeft)}s...`;
+        }
+      }, 1000);
+
+      // Collect keyframes at intervals
+      const sampleTimings = [500, 1800, 3200, 4700];
+      for (const delay of sampleTimings) {
+        await new Promise((r) => setTimeout(r, delay === sampleTimings[0] ? delay : delay - sampleTimings[sampleTimings.indexOf(delay) - 1]));
+        const frame = this.captureCurrentFrame();
+        if (frame) keyframes.push(frame);
+      }
+
+      clearInterval(timer);
+      if (this.countdownBadge) this.countdownBadge.style.display = 'none';
+      if (this.statusEl) this.statusEl.textContent = 'Analyzing video frames with Vision AI & remembering...';
+
+      try {
+        const result = await api('/api/vision/analyze-clip', {
+          method: 'POST',
+          body: JSON.stringify({
+            frames: keyframes,
+            question: question,
+            client_time: new Date().toISOString(),
+          }),
+        });
+
+        this.close();
+
+        // Render preview in chat
+        if (keyframes.length > 0) {
+          addImageMessage('You', keyframes[0], `Look at this: ${question}`, 'vision-clip-frame.jpg');
+        } else {
+          addMessage('You', `Look at this: ${question}`);
+        }
+
+        const reply = result.reply || result.summary || 'I analyzed the clip and recorded it to memory.';
+        addMessage('Future', reply);
+        if (voiceLockEnabled && reply) {
+          playTts(reply);
+        }
+      } catch (err) {
+        if (this.statusEl) this.statusEl.textContent = `Vision analysis error: ${err.message}`;
+        addMessage('Future', `Vision analysis failed: ${err.message}`);
+      } finally {
+        this.isRecording = false;
+        if (this.startBtn) this.startBtn.disabled = false;
+      }
+    } else {
+      // Fallback: Trigger laptop/host system camera directly via backend
+      if (this.statusEl) this.statusEl.textContent = 'Triggering laptop webcam to record 5s clip...';
+      try {
+        const result = await api('/api/vision/look', {
+          method: 'POST',
+          body: JSON.stringify({
+            question: question,
+            duration: 5.0,
+            client_time: new Date().toISOString(),
+          }),
+        });
+
+        this.close();
+
+        const frames = result.frames || [];
+        if (frames.length > 0) {
+          addImageMessage('You', frames[0], `Look at this (laptop camera): ${question}`, 'laptop-camera-frame.jpg');
+        } else {
+          addMessage('You', `Look at this: ${question}`);
+        }
+
+        const reply = result.reply || result.summary || 'I analyzed what you showed and stored it in memory.';
+        addMessage('Future', reply);
+        if (voiceLockEnabled && reply) {
+          playTts(reply);
+        }
+      } catch (err) {
+        if (this.statusEl) this.statusEl.textContent = `Host camera error: ${err.message}`;
+        addMessage('Future', `Camera capture error: ${err.message}`);
+      } finally {
+        this.isRecording = false;
+        if (this.startBtn) this.startBtn.disabled = false;
+      }
+    }
+  },
+};
+
+document.getElementById('chat-vision-look')?.addEventListener('click', () => {
+  VisionController.open('Look at this and tell me what you see');
+});
+document.getElementById('vision-close')?.addEventListener('click', () => VisionController.close());
+document.getElementById('vision-cancel')?.addEventListener('click', () => VisionController.close());
+document.getElementById('vision-flip-cam')?.addEventListener('click', () => VisionController.flipCamera());
+document.getElementById('vision-start-btn')?.addEventListener('click', () => VisionController.recordAndAnalyze());
+document.getElementById('vision-overlay')?.addEventListener('click', (event) => {
+  if (event.target === document.getElementById('vision-overlay')) VisionController.close();
+});
+
 document.addEventListener('click', (e) => {
   const btn = e.target.closest('.calendar-range-btn');
   if (!btn) return;
@@ -4190,7 +4715,7 @@ document.querySelectorAll('.connect-btn[data-connect-service]').forEach((button)
 });
 
 const Settings = {
-  open() { document.getElementById('settings-overlay').classList.add('open'); },
+  open() { document.getElementById('settings-overlay').classList.add('open'); Devices.refresh(); },
   close() { document.getElementById('settings-overlay').classList.remove('open'); },
   save() {
     const base = document.getElementById('settings-api-base').value.trim();
@@ -4206,6 +4731,273 @@ const Settings = {
 
 document.getElementById('settings-overlay').addEventListener('click', (e) => {
   if (e.target.id === 'settings-overlay') Settings.close();
+});
+
+const Devices = {
+  async list() {
+    try {
+      return await api('/api/devices');
+    } catch (error) {
+      return [];
+    }
+  },
+  async refresh() {
+    const listEl = document.getElementById('device-list');
+    if (!listEl) return;
+    const devices = await this.list();
+    if (!devices.length) {
+      listEl.innerHTML = '<div class="hint">No devices added yet.</div>';
+      return;
+    }
+    listEl.innerHTML = '';
+    devices.forEach((device) => listEl.appendChild(this.renderRow(device)));
+  },
+  renderRow(device) {
+    const row = document.createElement('div');
+    row.className = 'device-row';
+    const kindLabel = device.type === 'raspberry_pi' ? 'Raspberry Pi' : 'ESP32';
+    const desc = device.description ? ` - ${escapeHtml(device.description)}` : '';
+    row.innerHTML = `
+      <div class="dv-info">
+        <span class="dv-name"><span class="device-status-dot ${device.status === 'online' ? 'online' : device.status === 'offline' ? 'offline' : ''}"></span> ${escapeHtml(device.name)}</span>
+        <span class="dv-meta">${kindLabel} - ${escapeHtml(device.host)}:${device.port}${desc}</span>
+      </div>
+      <div class="dv-actions">
+        <button class="connect-btn" data-action="test">Test</button>
+        ${device.type === 'raspberry_pi' ? '<button class="connect-btn" data-action="view">View</button>' : ''}
+        <button class="connect-btn" data-action="remove">Remove</button>
+      </div>`;
+    row.querySelector('[data-action="test"]').addEventListener('click', () => this.test(device.id));
+    row.querySelector('[data-action="remove"]').addEventListener('click', () => this.remove(device.id));
+    const viewBtn = row.querySelector('[data-action="view"]');
+    if (viewBtn) viewBtn.addEventListener('click', () => this.viewStream(device.id));
+    return row;
+  },
+  async test(id) {
+    try {
+      const result = await api(`/api/devices/${id}/test`, { method: 'POST' });
+      alert(result.reachable ? `Online: ${result.detail}` : `Offline: ${result.detail}`);
+    } catch (error) {
+      alert(`Test failed: ${error.message}`);
+    } finally {
+      this.refresh();
+    }
+  },
+  async remove(id) {
+    if (!confirm('Remove this device?')) return;
+    try {
+      await api(`/api/devices/${id}`, { method: 'DELETE' });
+    } catch (error) {
+      alert(`Could not remove device: ${error.message}`);
+    } finally {
+      this.refresh();
+    }
+  },
+  async viewStream(id) {
+    try {
+      const result = await api(`/api/devices/${id}/stream-url`);
+      if (result.url) window.open(result.url, '_blank', 'noopener');
+    } catch (error) {
+      alert(`Could not open stream: ${error.message}`);
+    }
+  },
+};
+
+const DeviceWizard = {
+  kind: 'raspberry_pi',
+  steps: {
+    raspberry_pi: [
+      'Flash Raspberry Pi OS onto an SD card and boot the Pi on your home WiFi network.',
+      'Enable the camera and SSH via <code>sudo raspi-config</code> (Interface Options).',
+      'Install a camera stream server, e.g. <code>mjpg-streamer</code>, and start it so it serves an MJPEG stream (default path is often <code>/stream.mjpg</code>).',
+      'Find the Pi\'s IP address with <code>hostname -I</code> and enter it below, along with the port your stream server uses (commonly 8080).',
+      'Click Test Connection, then Save Device once it succeeds.',
+    ],
+    esp32: [
+      'Flash your ESP32 with firmware that connects to your home WiFi and exposes an HTTP API (e.g. Arduino WebServer or ESPAsyncWebServer).',
+      'Confirm the board joined your WiFi - check the serial monitor for the assigned IP address.',
+      'Enter that IP address below and the port your firmware listens on (commonly 80).',
+      'If your firmware requires a token/API key for commands, enter it below.',
+      'Click Test Connection, then Save Device. Afterward you can send commands like <code>/led/on</code> from Future.',
+    ],
+  },
+  open(kind) {
+    this.kind = kind;
+    document.getElementById('wizard-title').textContent = kind === 'raspberry_pi' ? 'Add Raspberry Pi' : 'Add ESP32';
+    document.getElementById('wizard-steps').innerHTML = this.steps[kind]
+      .map((text) => `<div class="wizard-step"><span class="num"></span><span>${text}</span></div>`)
+      .join('');
+    document.getElementById('wizard-stream-group').style.display = kind === 'raspberry_pi' ? 'block' : 'none';
+    document.getElementById('wizard-commands-group').style.display = kind === 'esp32' ? 'block' : 'none';
+    document.getElementById('wizard-name').value = '';
+    document.getElementById('wizard-description').value = '';
+    document.getElementById('wizard-host').value = '';
+    document.getElementById('wizard-port').value = kind === 'raspberry_pi' ? '8080' : '80';
+    document.getElementById('wizard-stream-path').value = '/stream.mjpg';
+    document.getElementById('wizard-api-key').value = '';
+    document.getElementById('wizard-commands-list').innerHTML = '';
+    if (kind === 'esp32') this.addCommandRow();
+    const resultEl = document.getElementById('wizard-test-result');
+    resultEl.className = 'wizard-test-result';
+    resultEl.textContent = '';
+    this._lastTestedId = null;
+    document.getElementById('wizard-overlay').classList.add('open');
+  },
+  addCommandRow(trigger = '', path = '', method = 'GET') {
+    const list = document.getElementById('wizard-commands-list');
+    const row = document.createElement('div');
+    row.className = 'command-row';
+    row.innerHTML = `
+      <input type="text" class="cmd-trigger" placeholder="e.g. close the hand" value="${escapeHtml(trigger)}">
+      <input type="text" class="cmd-path" placeholder="/hand/close" value="${escapeHtml(path)}">
+      <select class="cmd-method"><option value="GET">GET</option><option value="POST">POST</option></select>
+      <button class="icon-btn" type="button" title="Remove"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 6 6 18M6 6l12 12"/></svg></button>`;
+    row.querySelector('.cmd-method').value = method;
+    row.querySelector('.icon-btn').addEventListener('click', () => row.remove());
+    list.appendChild(row);
+  },
+  close() { document.getElementById('wizard-overlay').classList.remove('open'); },
+  collectCommands() {
+    return Array.from(document.querySelectorAll('#wizard-commands-list .command-row'))
+      .map((row) => ({
+        trigger: row.querySelector('.cmd-trigger').value.trim(),
+        path: row.querySelector('.cmd-path').value.trim(),
+        method: row.querySelector('.cmd-method').value,
+      }))
+      .filter((c) => c.trigger && c.path);
+  },
+  formPayload() {
+    return {
+      name: document.getElementById('wizard-name').value.trim(),
+      type: this.kind,
+      description: document.getElementById('wizard-description').value.trim(),
+      host: document.getElementById('wizard-host').value.trim(),
+      port: parseInt(document.getElementById('wizard-port').value, 10) || (this.kind === 'raspberry_pi' ? 8080 : 80),
+      stream_path: document.getElementById('wizard-stream-path').value.trim(),
+      api_key: document.getElementById('wizard-api-key').value.trim(),
+      commands: this.kind === 'esp32' ? this.collectCommands() : [],
+    };
+  },
+  async testConnection() {
+    const payload = this.formPayload();
+    if (!payload.host) { alert('Enter the device IP address first.'); return; }
+    const resultEl = document.getElementById('wizard-test-result');
+    resultEl.className = 'wizard-test-result show';
+    resultEl.textContent = 'Testing...';
+    try {
+      const created = await api('/api/devices', { method: 'POST', body: JSON.stringify(payload) });
+      const result = await api(`/api/devices/${created.id}/test`, { method: 'POST' });
+      resultEl.textContent = result.reachable ? `Reachable: ${result.detail}` : `Not reachable: ${result.detail}`;
+      resultEl.classList.add(result.reachable ? 'ok' : 'fail');
+      this._lastTestedId = created.id;
+    } catch (error) {
+      resultEl.textContent = `Error: ${error.message}`;
+      resultEl.classList.add('fail');
+    }
+  },
+  async save() {
+    const payload = this.formPayload();
+    if (!payload.host) { alert('Enter the device IP address first.'); return; }
+    try {
+      if (this._lastTestedId) {
+        await api(`/api/devices/${this._lastTestedId}`, { method: 'PUT', body: JSON.stringify(payload) });
+      } else {
+        await api('/api/devices', { method: 'POST', body: JSON.stringify(payload) });
+      }
+      this._lastTestedId = null;
+      this.close();
+      Devices.refresh();
+    } catch (error) {
+      alert(`Could not save device: ${error.message}`);
+    }
+  },
+};
+
+document.getElementById('device-add-pi')?.addEventListener('click', () => DeviceWizard.open('raspberry_pi'));
+document.getElementById('device-add-esp32')?.addEventListener('click', () => DeviceWizard.open('esp32'));
+document.getElementById('wizard-test-btn')?.addEventListener('click', () => DeviceWizard.testConnection());
+document.getElementById('wizard-save-btn')?.addEventListener('click', () => DeviceWizard.save());
+document.getElementById('wizard-add-command')?.addEventListener('click', () => DeviceWizard.addCommandRow());
+document.getElementById('wizard-overlay')?.addEventListener('click', (e) => {
+  if (e.target.id === 'wizard-overlay') DeviceWizard.close();
+});
+
+function looksLikeSelfUpdateIntent(text) {
+  const lowered = String(text || '').trim().toLowerCase();
+  if (!lowered) return false;
+  if (/^update(\s+(my|your|the)\s+(code|assistant|app|project))?$/.test(lowered)) return true;
+  return [
+    'self update', 'self-update', 'run self update', 'run a self update', 'run an update',
+    'update yourself', 'update your code', 'update my code', 'edit your code', 'edit my code',
+    'modify your code', 'modify my code',
+  ].some((phrase) => lowered.includes(phrase));
+}
+
+const SelfUpdateModal = {
+  open(prefill = '') {
+    const instructionEl = document.getElementById('self-update-instruction');
+    if (instructionEl) instructionEl.value = prefill.replace(/\b(run\s+)?(a\s+|an\s+)?self[-\s]?update\b\s*[:\-]?\s*/i, '').trim() || prefill;
+    const resultEl = document.getElementById('self-update-result');
+    if (resultEl) { resultEl.className = 'wizard-test-result'; resultEl.textContent = ''; }
+    document.getElementById('self-update-overlay')?.classList.add('open');
+  },
+  close() {
+    document.getElementById('self-update-overlay')?.classList.remove('open');
+  },
+  selectedEngine() {
+    const checked = document.querySelector('input[name="self-update-engine"]:checked');
+    return checked ? checked.value : 'claude';
+  },
+  async execute() {
+    const instruction = String(document.getElementById('self-update-instruction')?.value || '').trim();
+    const resultEl = document.getElementById('self-update-result');
+    if (!instruction) {
+      if (resultEl) { resultEl.className = 'wizard-test-result show fail'; resultEl.textContent = 'Describe what to update first.'; }
+      return;
+    }
+    const engine = this.selectedEngine();
+    if (resultEl) { resultEl.className = 'wizard-test-result show'; resultEl.textContent = 'Working...'; }
+
+    try {
+      if (engine === 'vscode') {
+        const result = await api('/api/self-update/vscode-prompt', {
+          method: 'POST',
+          body: JSON.stringify({ instruction, target_files: [] }),
+        });
+        if (resultEl) {
+          resultEl.className = 'wizard-test-result show ok';
+          resultEl.textContent = result.auto_submit
+            ? `Sent to Copilot Chat in VS Code automatically:\n\n${result.prompt}`
+            : `Opened VS Code. Paste this into Copilot Chat:\n\n${result.prompt}`;
+        }
+        addMessage('Future', `Sent to Copilot Chat in VS Code: "${instruction}"`);
+      } else {
+        const plan = await api('/api/self-update/plan', {
+          method: 'POST',
+          body: JSON.stringify({ instruction, target_files: [], scope: 'auto' }),
+        });
+        let summary = `Plan created (${plan.scope}, ${plan.model}).`;
+        if (String(plan.scope) === 'small_edit') {
+          const applied = await api('/api/self-update/execute', { method: 'POST' });
+          const files = (applied.applied || []).map((a) => a.path).join(', ') || 'no files';
+          summary = `Applied ${applied.applied?.length || 0} edit(s) to: ${files}.`;
+          if (applied.skipped?.length) summary += ` Skipped ${applied.skipped.length} (duplicate or unsafe).`;
+        } else {
+          summary += ' This is a full_rewrite plan, so it was not auto-applied - review logs/last_update_plan.json.';
+        }
+        if (resultEl) { resultEl.className = 'wizard-test-result show ok'; resultEl.textContent = summary; }
+        addMessage('Future', summary);
+      }
+    } catch (error) {
+      if (resultEl) { resultEl.className = 'wizard-test-result show fail'; resultEl.textContent = `Failed: ${error.message}`; }
+    }
+  },
+};
+
+document.getElementById('chat-self-update-open')?.addEventListener('click', () => SelfUpdateModal.open());
+document.getElementById('self-update-execute-btn')?.addEventListener('click', () => SelfUpdateModal.execute());
+document.getElementById('self-update-overlay')?.addEventListener('click', (e) => {
+  if (e.target.id === 'self-update-overlay') SelfUpdateModal.close();
 });
 
 function panelFromTag(tagId) {

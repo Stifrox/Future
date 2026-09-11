@@ -29,6 +29,13 @@ ALPACA_BASE_URL = "https://paper-api.alpaca.markets"
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
 ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "")
 
+# Computer Vision & Video Recording
+VIDEO_PATH = os.getenv("FUTURE_VIDEO_PATH", "logs/video")
+VIDEO_CHUNK_SECONDS = int(os.getenv("FUTURE_VIDEO_CHUNK_SECONDS", "5"))
+VISION_MODEL = os.getenv("FUTURE_VISION_MODEL", "gpt-4.1-mini")
+VISION_FPS = int(os.getenv("FUTURE_VISION_FPS", "15"))
+VISION_DEFAULT_CAMERA_INDEX = int(os.getenv("FUTURE_CAMERA_INDEX", "0"))
+
 # Instagram content automation (left blank until a source folder is set up)
 CONTENT_SOURCE_DIR = os.getenv("FUTURE_CONTENT_SOURCE_DIR", "").strip()
 CONTENT_APPROVAL_EMAIL = os.getenv("FUTURE_CONTENT_APPROVAL_EMAIL", "").strip()

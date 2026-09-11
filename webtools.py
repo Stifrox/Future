@@ -32,16 +32,41 @@ from tools.search import local_search
 from tools.anycubic import fetch_print_status
 from tools.personality import apply_personality, load_personality
 from tools.memory import extract_facts, load_memory, recall_fact, remember, save_memory, search_memory
+from tools.vision_tool import is_vision_query, look_at_this
+from tools.devices import (
+    camera_stream_url,
+    describe_devices_for_prompt,
+    match_camera_device,
+    match_device_command,
+    send_command as send_device_command,
+)
+from tools import persona
 
 try:
     import config
 except Exception:
-    """Retrieve environment variable with optional default value, stripping whitespace."""
     config = None
-    """Retrieve environment variable with optional default value, stripping whitespace."""
 
 
 def _env(name: str, default: str = "") -> str:
+def generate_vscode_copilot_prompt(update_plan: dict) -> str:
+    """Generate a prompt for VS Code Copilot to execute autonomous code updates."""
+    prompt = f"""
+You are an autonomous code update agent integrated with VS Code. Execute the following update plan:
+
+UPDATE PLAN:
+{json.dumps(update_plan, indent=2)}
+
+INSTRUCTIONS:
+1. Open each file listed in the 'edits' array
+2. For each edit, apply the change according to its type (insert_line, replace_text, append_text)
+3. Save all modified files
+4. Execute the test_plan commands to verify the changes
+5. Report completion status and any errors encountered
+    """
+    return prompt
+
+    """Retrieve environment variable with optional default value, stripping whitespace."""
     return os.getenv(name, default).strip()
 
 
@@ -497,41 +522,34 @@ def _looks_like_self_update_intent(query_lower: str) -> bool:
             "code changes",
             "apply changes",
             "make changes",
-            "use vscode",
-            "use vs code",
-            "vs code interface",
-            "vscode interface",
-            "wrapper",
         ]
     )
 
 
 def _looks_like_self_update_execute_intent(query_lower: str) -> bool:
     execute_markers = [
-        "execute the update",
-        "apply the update",
-        "run the update",
-        "execute update",
-        "apply update",
-        "finish the update",
-        "execute it",
-        "apply it",
-        "run it",
+        r"\bexecute\s+the\s+update\b",
+        r"\bapply\s+the\s+update\b",
+        r"\brun\s+the\s+update\b",
+        r"\bexecute\s+update\b",
+        r"\bapply\s+update\b",
+        r"\bfinish\s+the\s+update\b",
+        r"\bexecute\s+it\b",
+        r"\bapply\s+it\b",
+        r"\brun\s+it\b",
     ]
-    return any(marker in query_lower for marker in execute_markers)
+    return any(re.search(marker, query_lower) for marker in execute_markers)
 
 
 def _looks_like_self_update_direct_confirm(query_lower: str) -> bool:
     confirm_markers = [
-        "okay run it",
-        "ok run it",
-        "go ahead",
-        "do it",
-        "proceed",
-        "carry on",
-        "run it",
+        r"\bok(?:ay)?\s+run\s+it\b",
+        r"\bgo\s+ahead\b",
+        r"\bdo\s+it\b",
+        r"\bproceed\b",
+        r"\bcarry\s+on\b",
     ]
-    return any(marker in query_lower for marker in confirm_markers)
+    return any(re.search(marker, query_lower) for marker in confirm_markers)
 
 
 def _looks_like_basic_code_rerun_intent(query_lower: str) -> bool:
@@ -1100,8 +1118,51 @@ def _start_content_creation_reply(query: str) -> str:
     )
 
 
+_CAMERA_INTENT_PHRASES = [
+    "camera", "stream", "video feed", "pull up", "see what", "watch the", "check the camera", "look at the camera",
+]
+
+
+def _looks_like_camera_intent(query_lower: str) -> bool:
+    return any(phrase in query_lower for phrase in _CAMERA_INTENT_PHRASES)
+
+
+def _handle_device_command(query: str) -> Optional[str]:
+    """Match a WiFi device (Raspberry Pi camera / ESP32) by name/description and act on it."""
+    match = match_device_command(query)
+    if match:
+        device, command = match["device"], match["command"]
+        result = send_device_command(device["id"], command["path"], command.get("method", "GET"), command.get("body"))
+        label = device.get("description") or device["name"]
+        if result.get("ok"):
+            return f"Done \u2014 sent \"{command['trigger']}\" to {device['name']} ({label})."
+        return f"I tried sending \"{command['trigger']}\" to {device['name']} ({label}) but it failed: {result.get('response')}"
+
+    query_lower = query.lower()
+    if _looks_like_camera_intent(query_lower):
+        device = match_camera_device(query)
+        if not device:
+            return "I don't have any Raspberry Pi cameras connected yet \u2014 add one in Settings > WiFi devices."
+        url = camera_stream_url(device)
+        label = device.get("description") or "no description set"
+        return f"Here's the {device['name']} stream ({label}): {url}"
+
+    return None
+
+
 def _handle_local_intents(query: str) -> Optional[str]:
     q = query.lower()
+
+    if is_vision_query(query):
+        try:
+            vision_res = look_at_this(user_query=query, duration=5.0)
+            return str(vision_res.get("reply") or "I recorded what you showed me and saved it to memory.")
+        except Exception as exc:
+            return f"Vision capture error: {exc}"
+
+    device_reply = _handle_device_command(query)
+    if device_reply:
+        return device_reply
 
     if _looks_like_rewrite_planning_intent(q):
         return _rewrite_planning_clarifier()
@@ -1332,8 +1393,8 @@ def _build_chat_messages(query: str, recent_context=None, client_time: Optional[
         if ai_text:
             history_lines.append(f"Future: {ai_text}")
 
-    facts = extract_facts(memory)
-    fact_lines = [f"- {fact['subject']}: {fact['value']}" for fact in facts[-12:]]
+    facts = persona.relevant_facts(extract_facts(memory), query, limit=8)
+    fact_lines = [f"- {fact['subject']}: {fact['value']}" for fact in facts]
     history_text = "\n".join(history_lines) if history_lines else "No stored conversations yet."
     fact_text = "\n".join(fact_lines) if fact_lines else "No stored facts yet."
 
@@ -1351,19 +1412,18 @@ def _build_chat_messages(query: str, recent_context=None, client_time: Optional[
             recent_lines.append(f"Future: {content}")
 
     recent_text = "\n".join(recent_lines) if recent_lines else "No recent chat turns."
+    entities = persona.extract_recent_entities(recent_context)
+    style = persona.analyze_response_style(query, recent_context)
 
-    system_prompt = (
-        f"You are {personality['name']}, a highly capable personal AI assistant. "
-        f"Your traits are {personality['traits']} and your tone is {personality['tone']}. "
-        "Use the stored conversation history as long-term memory about the user. "
-        "Use the recent chat turns as short-term memory to resolve follow-up messages and context. "
-        "If the user asks what you remember, answer from that memory when possible. "
-        "Do not claim you cannot remember across chats when the stored memory includes relevant information. "
-        "Default to concise, practical, and action-oriented answers, but if the user asks for depth, detail, or step-by-step explanation, provide a fuller long-form answer.\n\n"
-        f"{time_context(client_time)}\n\n"
-        f"Recent chat turns (last 20 lines):\n{recent_text}\n\n"
-        f"Stored facts:\n{fact_text}\n\n"
-        f"Stored conversation history:\n{history_text}"
+    system_prompt = persona.build_system_prompt(
+        personality=personality,
+        time_line=time_context(client_time),
+        recent_text=recent_text,
+        fact_text=fact_text,
+        history_text=history_text,
+        devices_text=describe_devices_for_prompt(),
+        entities=entities,
+        style_note=persona.style_directive(style),
     )
     return memory, [
         {"role": "system", "content": system_prompt},

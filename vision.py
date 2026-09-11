@@ -1,10 +1,21 @@
-e# vision.py
+# vision.py
 import cv2
 import time
 import os
 import threading
+from pathlib import Path
+
 from config import VIDEO_PATH, VIDEO_CHUNK_SECONDS
 from memory import store_memory
+from tools.vision_tool import (
+    capture_video_clip,
+    extract_keyframes_from_video,
+    analyze_visual_frames,
+    save_visual_memory,
+    look_at_this,
+    is_vision_query,
+    get_vision_status,
+)
 
 os.makedirs(VIDEO_PATH, exist_ok=True)
 

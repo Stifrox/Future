@@ -1,0 +1,14 @@
+{
+  "name": "future-self-update-bridge",
+  "displayName": "Future Self-Update Bridge",
+  "description": "Lets the Future desktop assistant open Copilot Chat with a pre-filled, auto-submitted self-update prompt via a vscode:// URI.",
+  "version": "0.0.1",
+  "publisher": "future-local",
+  "private": true,
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": ["Other"],
+  "activationEvents": ["onUri"],
+  "main": "./extension.js"
+}

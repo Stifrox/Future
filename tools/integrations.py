@@ -351,9 +351,7 @@ def parse_calendar_time(command):
     start_match = re.search(r"\b(?:at|for)\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b", command_lower)
     if not start_match:
         # Support follow-up replies like "12pm tomorrow" without requiring "at"/"for".
-        start_match = re.search(r"\b(\d{1,2})(?::(\d{2}))\s*(am|pm)\b", command_lower)
-    if not start_match:
-        start_match = re.search(r"\b(\d{1,2})\s*(am|pm)\b", command_lower)
+        start_match = re.search(r"\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b", command_lower)
     start_time = None
     if start_match:
         ampm = start_match.group(3)
@@ -1266,17 +1264,47 @@ def _calendar_range_from_command(command_lower):
     return "today"
 
 
+_CALENDAR_UNCERTAIN_MARKERS = [
+    "not sure", "not certain", "don't know", "dont know", "no idea", "wondering if",
+    "kind of", "sort of", "i feel", "i think i", "might be", "might have", "not really sure",
+]
+
+
+def _looks_uncertain_or_reflective(command_lower):
+    """Guard against casual/reflective sentences that merely contain a calendar-ish word
+
+    (e.g. 'not sure what event to plan for my future') being treated as a create command."""
+    return any(marker in command_lower for marker in _CALENDAR_UNCERTAIN_MARKERS)
+
+
+def _verb_near_start(command_lower, verb_pattern, max_words_before=4):
+    """True if the verb appears early in the sentence and isn't just a possessive noun
+
+    phrase like 'my schedule' (which is a lookup, not a create command)."""
+    match = re.search(verb_pattern, command_lower)
+    if not match:
+        return False
+    prefix = command_lower[: match.start()].strip()
+    if re.search(r"\b(?:my|your|our|his|her|their)\s*$", prefix):
+        return False
+    return len(prefix.split()) <= max_words_before
+
+
 def _is_calendar_create_intent(command_lower):
     command_lower = command_lower.replace("calender", "calendar")
     command_lower = command_lower.replace("tmrw", "tomorrow")
     command_lower = command_lower.replace("tmr", "tomorrow")
-    if re.search(r"\b(?:schedule|create|add|make|plan)\b", command_lower):
-        return True
+
+    if _looks_uncertain_or_reflective(command_lower):
+        return False
+
     if re.search(r"\bset\s+(?:a\s+)?reminder\b", command_lower):
         return True
     if re.search(r"\bremind\s+(?:me\s+)?\b", command_lower):
         return True
-    if re.search(r"\b(?:create|schedule|add|make|plan|set)\b", command_lower) and re.search(r"\b(?:event|appointment)\b", command_lower):
+    if _verb_near_start(command_lower, r"\b(?:schedule|create|add|make|plan)\b"):
+        return True
+    if _verb_near_start(command_lower, r"\b(?:create|schedule|add|make|plan|set)\b") and re.search(r"\b(?:event|appointment)\b", command_lower):
         return True
     return False
 
@@ -1465,7 +1493,9 @@ def handle_calendar_command(command):
         webbrowser.open("https://calendar.google.com")
         return "Opening Google Calendar."
 
-    return "I can manage your calendar. Try: schedule gym today at 7pm."
+    # Nothing here actually matched a create/lookup/open action - let the caller fall
+    # back to the AI instead of showing a canned "try schedule gym at 7pm" reply.
+    return None
 
 
 def _normalize_email_address(raw_address):
