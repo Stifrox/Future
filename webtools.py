@@ -49,6 +49,10 @@ except Exception:
 
 
 def _env(name: str, default: str = "") -> str:
+    """Retrieve environment variable with optional default value, stripping whitespace."""
+    return os.getenv(name, default).strip()
+
+
 def generate_vscode_copilot_prompt(update_plan: dict) -> str:
     """Generate a prompt for VS Code Copilot to execute autonomous code updates."""
     prompt = f"""
@@ -65,9 +69,6 @@ INSTRUCTIONS:
 5. Report completion status and any errors encountered
     """
     return prompt
-
-    """Retrieve environment variable with optional default value, stripping whitespace."""
-    return os.getenv(name, default).strip()
 
 
 _ANSI_RE = re.compile(r"\x1B\[[0-?]*[ -/]*[@-~]")

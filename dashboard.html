@@ -232,7 +232,7 @@
     color:var(--text-2);
     font-family:var(--font-label);
     font-size:13px;
-    letter-spacing:1px;
+    min-width:0;
     text-align:left;
     transition:background .15s ease, color .15s ease;
   }
@@ -502,6 +502,39 @@
     gap:10px;
     padding-top:14px;
     border-top:1px solid var(--border);
+    flex-wrap:wrap;
+  }
+  .chat-attachments{
+    display:flex;
+    flex:1 0 100%;
+    gap:8px;
+    min-width:0;
+    overflow-x:auto;
+  }
+  .chat-attachment{
+    position:relative;
+    flex:0 0 auto;
+    width:54px;
+    height:54px;
+    border:1px solid var(--border-bright);
+    border-radius:var(--radius-m);
+    overflow:hidden;
+    background:var(--bg-inset);
+  }
+  .chat-attachment img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .chat-attachment-remove{
+    position:absolute;
+    top:2px;
+    right:2px;
+    width:18px;
+    height:18px;
+    border:1px solid rgba(0,0,0,.5);
+    border-radius:50%;
+    background:rgba(10,11,12,.82);
+    color:var(--text-1);
+    font-size:13px;
+    line-height:15px;
+    padding:0;
   }
   .chat-input-row input{
     flex:1;
@@ -1922,12 +1955,13 @@
       </div>
 
       <form class="chat-input-row" id="chat-form">
+        <div class="chat-attachments" id="chat-attachments" hidden></div>
         <input type="text" id="chat-input" placeholder="Message Future..." autocomplete="off">
         <button type="button" class="chat-image" id="chat-vision-look" title="Look at this (5s camera video & memory)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button>
         <button type="button" class="chat-image" id="chat-image-open" title="Upload image"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-6 6-3-3-4 4"/></svg></button>
         <button type="button" class="chat-image" id="chat-image-generate" title="Generate image"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M18.4 5.6l-2.8 2.8M8.4 15.6l-2.8 2.8"/></svg></button>
         <button type="button" class="chat-image" id="chat-self-update-open" title="Run a self-update"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg></button>
-        <input type="file" id="chat-image-picker" accept="image/*" style="display:none;">
+        <input type="file" id="chat-image-picker" accept="image/*" multiple style="display:none;">
         <button type="button" class="chat-mic-lock" id="chat-mic-lock" title="Voice lock off"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 14a3 3 0 0 0 3-3V7a3 3 0 1 0-6 0v4a3 3 0 0 0 3 3Z"/><path d="M19 11a7 7 0 0 1-14 0"/><path d="M12 18v4"/><path d="M8 22h8"/></svg></button>
         <button type="submit" class="chat-send"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/></svg></button>
       </form>
@@ -2982,7 +3016,9 @@ async function sendComposedEmail() {
 }
 
 const chatImagePicker = document.getElementById('chat-image-picker');
+const chatAttachments = document.getElementById('chat-attachments');
 let pendingChatImageDataUrl = '';
+let pendingChatImages = [];
 
 const NotesApp = {
   overlay: document.getElementById('notes-overlay'),
@@ -3308,6 +3344,7 @@ function parseImageGeneratePrompt(text) {
   const raw = String(text || '').trim();
   if (!raw) return '';
   const lowered = raw.toLowerCase();
+  if (/\bmake\s+(?:this|that)\s+(?:image|pic|picture)\b/i.test(raw)) return '';
   if (!(lowered.includes('image') && /(generate|create|make)/.test(lowered))) return '';
 
   const explicit = raw.match(/(?:image\s+of|image\s+for|generate\s+me\s+an?\s+image\s+of|create\s+an?\s+image\s+of|make\s+an?\s+image\s+of)\s+(.+)$/i);
@@ -3336,9 +3373,15 @@ async function readFileAsDataUrl(file) {
 function parseImageEditPrompt(text) {
   const raw = String(text || '').trim();
   if (!raw) return '';
-  const match = raw.match(/^(?:please\s+)?(?:edit|modify|change|remix|restyle)\s+(?:this|that)?\s*(?:image|pic|picture)?\s*(?:to|so|into)?\s*(.+)$/i);
-  if (!match) return '';
-  return (match[1] || '').trim();
+  const directMatch = raw.match(/^(?:please\s+)?(?:(?:edit|modify|remix|restyle)\s+(?:this|that|the)?\s*(?:image|pic|picture)|make\s+(?:this|that)\s+(?:image|pic|picture))\s*(?:to|so|into)?\s*(.+)$/i);
+  if (directMatch && directMatch[1]) return directMatch[1].trim();
+
+  const changeMatch = raw.match(/\bchange\s+(.+)$/i);
+  if (!changeMatch || !/(?:this|that|the)\s+(?:image|pic|picture)\b/i.test(changeMatch[1])) return '';
+  return changeMatch[1]
+    .replace(/\s+of\s+(?:this|that|the)\s+(?:image|pic|picture)\b/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function looksLikeImageGenerateIntent(text) {
@@ -3346,11 +3389,51 @@ function looksLikeImageGenerateIntent(text) {
   return lowered.includes('image') && /(generate|create|make)/.test(lowered);
 }
 
+function renderChatAttachments() {
+  if (!chatAttachments) return;
+  chatAttachments.replaceChildren();
+  chatAttachments.hidden = pendingChatImages.length === 0;
+  pendingChatImages.forEach((attachment, index) => {
+    const item = document.createElement('div');
+    item.className = 'chat-attachment';
+    item.title = attachment.label;
+
+    const image = document.createElement('img');
+    image.src = attachment.dataUrl;
+    image.alt = attachment.label;
+    item.appendChild(image);
+
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'chat-attachment-remove';
+    remove.textContent = 'x';
+    remove.title = `Remove ${attachment.label}`;
+    remove.addEventListener('click', () => {
+      pendingChatImages.splice(index, 1);
+      pendingChatImageDataUrl = pendingChatImages[0]?.dataUrl || '';
+      pendingChatImageLabel = pendingChatImages[0]?.label || '';
+      renderChatAttachments();
+      chatInput?.focus();
+    });
+    item.appendChild(remove);
+    chatAttachments.appendChild(item);
+  });
+}
+
 function attachPendingChatImage(dataUrl, sourceLabel = 'image') {
-  pendingChatImageDataUrl = String(dataUrl || '');
-  pendingChatImageLabel = sourceLabel;
-  if (!pendingChatImageDataUrl) return;
-  analyzePendingImageInline('Describe what is in this image and anything notable about it.');
+  const normalizedDataUrl = String(dataUrl || '').trim();
+  if (!normalizedDataUrl) return;
+  pendingChatImages.push({ dataUrl: normalizedDataUrl, label: sourceLabel });
+  pendingChatImageDataUrl = pendingChatImages[0].dataUrl;
+  pendingChatImageLabel = pendingChatImages[0].label;
+  renderChatAttachments();
+}
+
+function clearPendingChatImages() {
+  pendingChatImages = [];
+  pendingChatImageDataUrl = '';
+  pendingChatImageLabel = '';
+  renderChatAttachments();
 }
 
 function addImageMessage(who, dataUrl, caption = '', downloadName = 'future-image.png') {
@@ -3400,13 +3483,15 @@ async function generateImageInline(prompt) {
     const dataUrl = String(result.image_data_url || '').trim();
     if (!dataUrl) throw new Error('No image returned');
     addImageMessage('Future', dataUrl, `Generated image for: ${prompt}`, 'future-generated.png');
+    pendingChatImageDataUrl = dataUrl;
+    pendingChatImageLabel = 'generated result';
   } catch (error) {
     addMessage('Future', `Image generation failed: ${error.message}`);
   }
 }
 
-async function editImageInline(prompt) {
-  if (!pendingChatImageDataUrl) {
+async function editImageInline(prompt, sourceDataUrl = pendingChatImageDataUrl) {
+  if (!sourceDataUrl) {
     addMessage('Future', 'Attach or paste an image first, then ask me to modify it.');
     return;
   }
@@ -3414,20 +3499,22 @@ async function editImageInline(prompt) {
   try {
     const result = await api('/api/images/edit', {
       method: 'POST',
-      body: JSON.stringify({ image_data_url: pendingChatImageDataUrl, prompt }),
+      body: JSON.stringify({ image_data_url: sourceDataUrl, prompt }),
     });
     const dataUrl = String(result.image_data_url || '').trim();
     if (!dataUrl) throw new Error('No edited image returned');
     addImageMessage('Future', dataUrl, `Edited image: ${prompt}`, 'future-edited.png');
     pendingChatImageDataUrl = dataUrl;
     pendingChatImageLabel = 'edited result';
+    pendingChatImages = [{ dataUrl, label: 'edited result' }];
+    renderChatAttachments();
   } catch (error) {
     addMessage('Future', `Image edit failed: ${error.message}`);
   }
 }
 
-async function analyzePendingImageInline(question) {
-  if (!pendingChatImageDataUrl) {
+async function analyzePendingImageInline(question, sourceDataUrl = pendingChatImageDataUrl) {
+  if (!sourceDataUrl) {
     addMessage('Future', 'Attach or paste an image first, then ask me to analyze it.');
     return;
   }
@@ -3435,7 +3522,7 @@ async function analyzePendingImageInline(question) {
   try {
     const result = await api('/api/images/analyze', {
       method: 'POST',
-      body: JSON.stringify({ image_data_url: pendingChatImageDataUrl, question }),
+      body: JSON.stringify({ image_data_url: sourceDataUrl, question }),
     });
     const analysis = String(result.analysis || '').trim() || 'No analysis returned.';
     addMessage('Future', analysis);
@@ -4206,11 +4293,46 @@ chatForm.addEventListener('submit', (e) => {
   e.preventDefault();
   const val = chatInput.value.trim();
   if (!val) return;
+  const stagedImages = [...pendingChatImages];
+  const stagedSource = stagedImages[0]?.dataUrl || pendingChatImageDataUrl;
+  const showStagedImages = () => {
+    stagedImages.forEach((attachment) => {
+      addImageMessage('You', attachment.dataUrl, `Attached image: ${attachment.label}`, attachment.label || 'attached-image.png');
+    });
+  };
 
   if (looksLikeSelfUpdateIntent(val)) {
     chatInput.value = '';
     addMessage('You', val);
     SelfUpdateModal.open(val);
+    return;
+  }
+
+  const imageEditPrompt = parseImageEditPrompt(val);
+  if (imageEditPrompt && stagedSource) {
+    chatInput.value = '';
+    addMessage('You', val);
+    showStagedImages();
+    clearPendingChatImages();
+    editImageInline(imageEditPrompt, stagedSource);
+    return;
+  }
+
+  if (stagedSource && /\b(analy[sz]e|describe|what(?:'s| is) in)\b/i.test(val)) {
+    chatInput.value = '';
+    addMessage('You', val);
+    showStagedImages();
+    clearPendingChatImages();
+    analyzePendingImageInline(val, stagedSource);
+    return;
+  }
+
+  if (stagedSource) {
+    chatInput.value = '';
+    addMessage('You', val);
+    showStagedImages();
+    clearPendingChatImages();
+    editImageInline(val, stagedSource);
     return;
   }
 
@@ -4228,7 +4350,6 @@ chatForm.addEventListener('submit', (e) => {
     return;
   }
 
-  const imageEditPrompt = parseImageEditPrompt(val);
   if (imageEditPrompt) {
     chatInput.value = '';
     addMessage('You', val);
@@ -4278,18 +4399,17 @@ document.getElementById('chat-image-open')?.addEventListener('click', () => {
 
 chatImagePicker?.addEventListener('change', async (event) => {
   const input = event.target;
-  const file = input?.files && input.files[0];
-  if (!file) return;
-  if (!String(file.type || '').startsWith('image/')) {
-    addMessage('Future', 'That file is not an image. Please pick an image file.');
-    return;
-  }
+  const files = Array.from(input?.files || []);
+  if (!files.length) return;
   try {
-    const dataUrl = await readFileAsDataUrl(file);
-    addImageMessage('You', dataUrl, `Uploaded image: ${file.name || 'image'}`, file.name || 'uploaded-image.png');
-    attachPendingChatImage(dataUrl, file.name || 'uploaded file');
+    for (const file of files) {
+      if (!String(file.type || '').startsWith('image/')) continue;
+      const dataUrl = await readFileAsDataUrl(file);
+      attachPendingChatImage(dataUrl, file.name || 'uploaded file');
+    }
+    chatInput?.focus();
   } catch (error) {
-    addMessage('Future', `Could not load image: ${error.message}`);
+    addMessage('Future', `Could not stage image: ${error.message}`);
   } finally {
     input.value = '';
   }
@@ -4308,10 +4428,10 @@ document.addEventListener('paste', async (event) => {
   if (!file) return;
   try {
     const dataUrl = await readFileAsDataUrl(file);
-    addImageMessage('You', dataUrl, 'Pasted image', 'pasted-image.png');
     attachPendingChatImage(dataUrl, 'clipboard');
+    chatInput?.focus();
   } catch (error) {
-    addMessage('Future', `Could not read pasted image: ${error.message}`);
+    addMessage('Future', `Could not stage pasted image: ${error.message}`);
   }
 });
 
@@ -5119,6 +5239,7 @@ document.getElementById('access-form')?.addEventListener('submit', async (event)
     error.textContent = '';
     setAccessGate(true);
     refreshAll();
+    loadOpeningGreeting(chatGreetingBubble);
   } catch (caught) {
     input.value = '';
     error.textContent = caught.message;
