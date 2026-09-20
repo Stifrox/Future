@@ -1,19 +1,19 @@
 [
   {
-    "id": "94ebcc4e0b3841c1b2329158bec2f69a",
+    "id": "f7c4ff5ec65a4f01bccb8f43cdfe1487",
     "type": "instagram_batch",
-    "payload": {},
-    "status": "done",
-    "progress_current": 13,
-    "progress_total": 13,
-    "progress_message": "Finished. Results are in your email",
-    "result": {
-      "batch_id": "7a8207e295c442198de1501118919976",
-      "video_count": 13,
-      "emailed": true
+    "payload": {
+      "source_dir": null,
+      "target_count": 2,
+      "instruction": "Make it not much voice and mostly just cool back ground music and transistions"
     },
-    "error": null,
-    "created_at": "2026-08-28T23:44:31.707532+00:00",
-    "updated_at": "2026-08-28T23:49:13.942224+00:00"
+    "status": "error",
+    "progress_current": 0,
+    "progress_total": 0,
+    "progress_message": "Scanning the content folder",
+    "result": null,
+    "error": "No content source folder is configured yet (set FUTURE_CONTENT_SOURCE_DIR).",
+    "created_at": "2026-09-17T04:21:13.777393+00:00",
+    "updated_at": "2026-09-17T04:21:13.806446+00:00"
   }
 ]

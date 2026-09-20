@@ -1,5 +1,13 @@
 Future is a highly experimental personal AI assistant built as a layered system for conversation, memory, autonomy, external integration, and continuous adaptation. Rather than functioning as a single monolithic chatbot, Future is designed as an architecture of cooperating subsystems: a user interaction layer, a reasoning and orchestration layer, a memory layer, a tool execution layer, and a integration layer for external services and hardware. This modular design makes it possible to expand the system over time while keeping core behavior understandable and maintainable.
 
+## Voice modes
+
+Desktop voice mode uses the local microphone listener in `main.py` and can remain active indefinitely. The dashboard's desktop voice lock remains separate from mobile voice.
+
+On a phone, use the mobile voice button in the chat controls. It records short foreground segments, sends them through the existing transcription endpoint, and routes the transcript through the same chat and integration system as typed messages. Replies are spoken through the existing TTS path while mobile voice is enabled.
+
+Phone microphone access normally requires HTTPS when connecting to Future over a local network. Keep the dashboard open in the foreground: mobile browsers may suspend microphone capture when the page is backgrounded or the phone is locked. Tap the mobile voice button again to stop listening.
+
 ## Recent chats
 
 Chat sessions are stored in SQLite at `data/chat_sessions.sqlite3` by default. Set `FUTURE_CHAT_SESSIONS_DB` to use another path. Future keeps the newest 10 unstarred sessions; starred sessions are retained outside that limit. The dashboard provides a Recent chats selector, and chat commands include `/new`, `/recall`, and `/recall keyword`.

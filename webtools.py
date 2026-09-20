@@ -8,9 +8,10 @@ import sys
 import urllib.parse
 import secrets
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional
+from zoneinfo import ZoneInfo
 
 import requests
 import platform
@@ -47,6 +48,23 @@ try:
 except Exception:
     config = None
 
+
+def generate_vscode_copilot_prompt(update_plan: dict) -> str:
+    """Generate a prompt for VS Code Copilot to execute autonomous code updates."""
+    prompt = f"""
+You are an autonomous code update agent integrated with VS Code. Execute the following update plan:
+
+UPDATE PLAN:
+{json.dumps(update_plan, indent=2)}
+
+INSTRUCTIONS:
+1. Open each file listed in the 'edits' array
+2. For each edit, apply the change according to its type (insert_line, replace_text, append_text)
+3. Save all modified files
+4. Execute the test_plan commands to verify the changes
+5. Report completion status and any errors encountered
+    """
+    return prompt
 
 def _env(name: str, default: str = "") -> str:
     """Retrieve environment variable with optional default value, stripping whitespace."""
@@ -1344,6 +1362,7 @@ def _handle_memory_intents(query: str) -> Optional[str]:
 
 def time_context(client_time: Optional[str] = None) -> str:
     """Describe the current moment (day/time/part-of-day) so replies can be time-aware."""
+    central_tz = ZoneInfo("America/Chicago")
     now = None
     if client_time:
         try:
@@ -1352,7 +1371,10 @@ def time_context(client_time: Optional[str] = None) -> str:
         except Exception:
             now = None
     if now is None:
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=central_tz)
+    now = now.astimezone(central_tz)
 
     hour = now.hour
     if 5 <= hour < 12:

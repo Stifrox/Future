@@ -1,4 +1,4 @@
-const CACHE_NAME = 'future-console-v5';
+const CACHE_NAME = 'future-console-v6';
 const APP_SHELL = ['/', '/dashboard', '/manifest.json', '/apple-touch-icon.png', '/icons/future-icon-192.png', '/icons/future-icon-512.png', '/icons/future-icon-ios-180.png'];
 
 self.addEventListener('install', (event) => {
