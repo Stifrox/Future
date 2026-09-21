@@ -437,6 +437,18 @@
   .msg .bubble ol{ margin:6px 0 0 18px; padding:0; }
   .msg .bubble li + li{ margin-top:4px; }
   .msg .bubble strong{ color:#f1f3f5; font-weight:600; }
+  .image-progress-bubble{ min-width:220px; }
+  .image-progress-label{ display:flex; align-items:center; justify-content:space-between; gap:14px; }
+  .image-progress-percent{ color:var(--steel); font-family:var(--font-mono); font-size:12px; }
+  .image-progress-dots{ display:inline-flex; gap:4px; margin-left:7px; vertical-align:middle; }
+  .image-progress-dots i{ width:5px; height:5px; border-radius:50%; background:var(--steel); animation:image-dot-bounce 1s ease-in-out infinite; }
+  .image-progress-dots i:nth-child(2){ animation-delay:.14s; }
+  .image-progress-dots i:nth-child(3){ animation-delay:.28s; }
+  .typing-bubble{ display:inline-flex; align-items:center; min-width:58px; min-height:22px; }
+  .image-progress-track{ height:4px; margin-top:9px; overflow:hidden; border-radius:99px; background:var(--bg-inset); }
+  .image-progress-fill{ height:100%; width:0; border-radius:inherit; background:var(--steel); transition:width .35s ease; }
+  @keyframes image-dot-bounce{ 0%,60%,100%{ transform:translateY(0); opacity:.45; } 30%{ transform:translateY(-4px); opacity:1; } }
+  @media (prefers-reduced-motion: reduce){ .image-progress-dots i{ animation:none; } }
   .msg.from-user .bubble{
     background:var(--steel-soft);
     border-color:var(--steel-dim);
@@ -587,12 +599,18 @@
   .chat-feature-menu.open{ display:flex; }
   .chat-feature-toggle{ font-size:22px; line-height:1; }
   .chat-mobile-voice{ display:none; }
-  .chat-mobile-voice.active{
-    color:var(--steel);
-    border-color:var(--steel-dim);
-    background:var(--steel-soft);
+  .chat-mobile-voice{
+    color:#d6a85b;
+    border-color:rgba(214,168,91,0.38);
+    background:rgba(214,168,91,0.08);
   }
-  .chat-mobile-voice svg{ width:16px; height:16px; }
+  .chat-mobile-voice.active{
+    color:#f0c979;
+    border-color:rgba(240,201,121,0.72);
+    background:rgba(214,168,91,0.18);
+    box-shadow:0 0 0 3px rgba(214,168,91,0.08);
+  }
+  .chat-mobile-voice svg{ width:17px; height:17px; }
   .bubble-image-wrap{
     display:flex;
     flex-direction:column;
@@ -1975,7 +1993,7 @@
           <button type="button" class="chat-image" id="chat-image-generate" title="Generate image"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M18.4 5.6l-2.8 2.8M8.4 15.6l-2.8 2.8"/></svg></button>
           <button type="button" class="chat-image" id="chat-self-update-open" title="Run a self-update"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg></button>
           <button type="button" class="chat-mic-lock" id="chat-mic-lock" title="Voice lock off"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 14a3 3 0 0 0 3-3V7a3 3 0 1 0-6 0v4a3 3 0 0 0 3 3Z"/><path d="M19 11a7 7 0 0 1-14 0"/><path d="M12 18v4"/><path d="M8 22h8"/></svg></button>
-          <button type="button" class="chat-image chat-mobile-voice" id="chat-mobile-voice" title="Mobile voice off" aria-label="Start mobile voice listening"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 14a3 3 0 0 0 3-3V7a3 3 0 1 0-6 0v4a3 3 0 0 0 3 3Z"/><path d="M19 11a7 7 0 0 1-14 0"/><path d="M12 18v4"/><path d="M8 22h8"/></svg></button>
+          <button type="button" class="chat-image chat-mobile-voice" id="chat-mobile-voice" title="Mobile voice off" aria-label="Start mobile voice listening"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="7" y="3" width="10" height="18" rx="2.2"/><path d="M10 6h4M11 18h2"/><path d="M19.5 8.5a5.5 5.5 0 0 1 0 7M21.5 6a9 9 0 0 1 0 12"/></svg></button>
         </div>
         <input type="file" id="chat-image-picker" accept="image/*" multiple style="display:none;">
         <button type="submit" class="chat-send"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/></svg></button>
@@ -3562,7 +3580,7 @@ function addImageMessage(who, dataUrl, caption = '', downloadName = 'future-imag
 }
 
 async function generateImageInline(prompt) {
-  addMessage('Future', 'Creating image...');
+  const progress = startImageProgress('Creating image');
   try {
     const result = await api('/api/images/generate', {
       method: 'POST',
@@ -3573,7 +3591,9 @@ async function generateImageInline(prompt) {
     addImageMessage('Future', dataUrl, `Generated image for: ${prompt}`, 'future-generated.png');
     pendingChatImageDataUrl = dataUrl;
     pendingChatImageLabel = 'generated result';
+    progress.complete('Image ready');
   } catch (error) {
+    progress.fail();
     addMessage('Future', `Image generation failed: ${error.message}`);
   }
 }
@@ -3583,7 +3603,7 @@ async function editImageInline(prompt, sourceDataUrl = pendingChatImageDataUrl) 
     addMessage('Future', 'Attach or paste an image first, then ask me to modify it.');
     return;
   }
-  addMessage('Future', 'Creating edited image...');
+  const progress = startImageProgress('Creating edited image');
   try {
     const result = await api('/api/images/edit', {
       method: 'POST',
@@ -3596,7 +3616,9 @@ async function editImageInline(prompt, sourceDataUrl = pendingChatImageDataUrl) 
     pendingChatImageLabel = 'edited result';
     pendingChatImages = [{ dataUrl, label: 'edited result' }];
     renderChatAttachments();
+    progress.complete('Edited image ready');
   } catch (error) {
+    progress.fail();
     addMessage('Future', `Image edit failed: ${error.message}`);
   }
 }
@@ -4130,6 +4152,53 @@ function addMessage(who, text) {
   if (shouldAutoScroll) chatThread.scrollTop = chatThread.scrollHeight;
 }
 
+function startImageProgress(label) {
+  const shouldAutoScroll = isChatNearBottom();
+  const div = document.createElement('div');
+  div.className = 'msg';
+  const time = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  div.innerHTML = `<div class="who">Future</div><div class="msg-body"><div class="bubble image-progress-bubble"><div class="image-progress-label"><span>${esc(label)}<span class="image-progress-dots"><i></i><i></i><i></i></span></span><span class="image-progress-percent">0%</span></div><div class="image-progress-track"><div class="image-progress-fill"></div></div></div></div><div class="ts">${time}</div>`;
+  chatThread.appendChild(div);
+  if (shouldAutoScroll) chatThread.scrollTop = chatThread.scrollHeight;
+
+  const percentEl = div.querySelector('.image-progress-percent');
+  const fillEl = div.querySelector('.image-progress-fill');
+  let percent = 0;
+  const timer = setInterval(() => {
+    percent = Math.min(92, percent + (percent < 55 ? 4 : 2));
+    percentEl.textContent = `${percent}%`;
+    fillEl.style.width = `${percent}%`;
+  }, 700);
+
+  return {
+    complete(message = 'Complete') {
+      clearInterval(timer);
+      percentEl.textContent = '100%';
+      fillEl.style.width = '100%';
+      const dots = div.querySelector('.image-progress-dots');
+      if (dots) dots.remove();
+      const text = div.querySelector('.image-progress-label span');
+      if (text) text.firstChild.textContent = message;
+      setTimeout(() => div.remove(), 700);
+    },
+    fail() {
+      clearInterval(timer);
+      div.remove();
+    },
+  };
+}
+
+function startTypingIndicator() {
+  const shouldAutoScroll = isChatNearBottom();
+  const div = document.createElement('div');
+  div.className = 'msg';
+  const time = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  div.innerHTML = '<div class="who">Future</div><div class="msg-body"><div class="bubble typing-bubble"><span class="image-progress-dots"><i></i><i></i><i></i></span></div></div><div class="ts">' + time + '</div>';
+  chatThread.appendChild(div);
+  if (shouldAutoScroll) chatThread.scrollTop = chatThread.scrollHeight;
+  return () => div.remove();
+}
+
 chatThread.addEventListener('click', (event) => {
   const button = event.target.closest('.copy-code-btn');
   if (!button) return;
@@ -4337,6 +4406,7 @@ async function sendChat(message, opts = {}) {
   }
 
   addMessage('You', message);
+  const stopTyping = startTypingIndicator();
   try {
     const res = await api('/api/chat/message', {
       method: 'POST',
@@ -4344,11 +4414,13 @@ async function sendChat(message, opts = {}) {
     });
     activeChatSessionId = res.session_id || activeChatSessionId;
     const replyText = res.reply || 'Future did not return a response.';
+    stopTyping();
     addMessage('Future', replyText);
     refreshRecentChats();
     await speakReplyIfVoiceMode(replyText);
     setServiceLive('chat', true);
   } catch (e) {
+    stopTyping();
     addMessage('Future', 'Future chat is unavailable right now. Verify backend and model configuration.');
     setServiceLive('chat', false);
   }
@@ -4668,6 +4740,20 @@ function closeImageStudio() {
   imageOverlay?.classList.remove('open');
 }
 
+function startImageStatusProgress(statusEl, label = 'Generating') {
+  if (!statusEl) return () => {};
+  let percent = 0;
+  statusEl.textContent = `${label} 0%`;
+  const timer = setInterval(() => {
+    percent = Math.min(92, percent + (percent < 55 ? 4 : 2));
+    statusEl.textContent = `${label} ${percent}%`;
+  }, 700);
+  return (done, message = 'Done.') => {
+    clearInterval(timer);
+    statusEl.textContent = done ? `${message} 100%` : message;
+  };
+}
+
 document.getElementById('chat-image-generate')?.addEventListener('click', openImageStudio);
 document.getElementById('image-close')?.addEventListener('click', closeImageStudio);
 imageOverlay?.addEventListener('click', (event) => {
@@ -4681,17 +4767,17 @@ imageGenerateBtn?.addEventListener('click', async () => {
     return;
   }
   imageGenerateBtn.disabled = true;
-  if (imageGenerateStatus) imageGenerateStatus.textContent = 'Generating...';
+  const finishImageStatus = startImageStatusProgress(imageGenerateStatus);
   try {
     const result = await api('/api/images/generate', { method: 'POST', body: JSON.stringify({ prompt }) });
     const dataUrl = String(result.image_data_url || '').trim();
     if (!dataUrl) throw new Error('No image returned');
     if (imageGeneratedPreview) { imageGeneratedPreview.src = dataUrl; imageGeneratedPreview.style.display = 'block'; }
     if (imageDownloadLink) { imageDownloadLink.href = dataUrl; imageDownloadLink.style.display = 'inline-block'; }
-    if (imageGenerateStatus) imageGenerateStatus.textContent = 'Done.';
+    finishImageStatus(true);
     addImageMessage('Future', dataUrl, `Generated image for: ${prompt}`, 'future-generated.png');
   } catch (error) {
-    if (imageGenerateStatus) imageGenerateStatus.textContent = `Failed: ${error.message}`;
+    finishImageStatus(false, `Failed: ${error.message}`);
   } finally {
     imageGenerateBtn.disabled = false;
   }
