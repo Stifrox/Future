@@ -1,4 +1,6 @@
 from fastapi.testclient import TestClient
+import base64
+from types import SimpleNamespace
 import urllib.parse
 
 import api_server
@@ -344,6 +346,35 @@ def test_vision_status_endpoint():
     payload = response.json()
     assert "opencv_available" in payload
     assert "vision_model" in payload
+
+
+def test_image_edit_preserves_mobile_jpeg_format_and_cleans_source(tmp_path, monkeypatch):
+    captured = {}
+
+    class FakeImages:
+        def edit(self, **kwargs):
+            with kwargs["image"] as image_file:
+                captured["name"] = image_file.name
+                captured["raw"] = image_file.read()
+            return SimpleNamespace(data=[SimpleNamespace(b64_json=base64.b64encode(b"edited-png").decode())])
+
+    class FakeClient:
+        images = FakeImages()
+
+    monkeypatch.setattr(api_server, "_openai_client_from_env", lambda: FakeClient())
+    monkeypatch.setattr(api_server, "_image_output_dir", lambda: tmp_path)
+    jpeg_bytes = b"\xff\xd8\xff\xe0mobile-jpeg"
+    jpeg_data_url = "data:image/jpeg;base64," + base64.b64encode(jpeg_bytes).decode()
+
+    response = client.post(
+        "/api/images/edit",
+        json={"image_data_url": jpeg_data_url, "prompt": "Make it brighter"},
+    )
+
+    assert response.status_code == 200
+    assert captured["name"].endswith(".jpg")
+    assert captured["raw"] == jpeg_bytes
+    assert list(tmp_path.glob("edit_source_*")) == []
 
 
 def test_vision_history_endpoint(monkeypatch):

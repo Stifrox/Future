@@ -1062,13 +1062,24 @@ def image_edit(payload: ImageEditRequest) -> Dict[str, str]:
     if not client:
         raise HTTPException(status_code=503, detail="OpenAI image edit is not configured")
 
+    source_path = None
     try:
         header, b64_data = image_data_url.split(",", 1)
-        _ = header
-        raw = base64.b64decode(b64_data)
+        mime = header.split(";", 1)[0].replace("data:", "").lower()
+        suffix_by_mime = {
+            "image/jpeg": ".jpg",
+            "image/png": ".png",
+            "image/webp": ".webp",
+        }
+        suffix = suffix_by_mime.get(mime)
+        if not suffix:
+            raise HTTPException(status_code=400, detail="Image edit supports JPEG, PNG, and WebP images")
+        raw = base64.b64decode(b64_data, validate=True)
+        if not raw:
+            raise HTTPException(status_code=400, detail="The image data is empty")
 
         image_id = uuid.uuid4().hex[:12]
-        source_path = _image_output_dir() / f"edit_source_{image_id}.png"
+        source_path = _image_output_dir() / f"edit_source_{image_id}{suffix}"
         source_path.write_bytes(raw)
 
         with source_path.open("rb") as image_file:
@@ -1099,6 +1110,12 @@ def image_edit(payload: ImageEditRequest) -> Dict[str, str]:
         raise
     except Exception as exc:
         raise HTTPException(status_code=503, detail=f"Image edit failed: {exc}") from exc
+    finally:
+        if source_path:
+            try:
+                source_path.unlink(missing_ok=True)
+            except Exception:
+                pass
 
 
 @app.post("/api/vision/look")
