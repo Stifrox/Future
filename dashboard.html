@@ -1389,6 +1389,83 @@
   .print-meta .pv{ font-family:var(--font-mono); font-size:12.5px; color:var(--steel); font-weight:600; }
   .print-meta .pk{ font-family:var(--font-label); font-size:8.5px; letter-spacing:1px; color:var(--text-3); margin-top:2px; }
 
+  /* ---------- AUTOPILOT TRADING ---------- */
+  .ap-metrics{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:8px;
+    margin-bottom:10px;
+  }
+  .ap-metrics div{
+    background:var(--bg-inset);
+    border:1px solid var(--border);
+    border-radius:var(--radius-s);
+    padding:7px 6px;
+    text-align:center;
+  }
+  .ap-metrics .pv{ font-family:var(--font-mono); font-size:12px; color:var(--steel); font-weight:600; }
+  .ap-metrics .pv.up{ color:var(--green); }
+  .ap-metrics .pv.down{ color:var(--red); }
+  .ap-metrics .pk{ font-family:var(--font-label); font-size:8px; letter-spacing:1px; color:var(--text-3); margin-top:2px; }
+  .ap-chart{ height:44px; margin-bottom:8px; }
+  .ap-chart svg{ width:100%; height:100%; }
+  .ap-status{ font-size:11.5px; color:var(--text-2); margin-bottom:10px; line-height:1.4; }
+  .ap-mode-toggle{ display:flex; gap:8px; margin-bottom:8px; }
+  .ap-mode-btn{
+    flex:1;
+    border:1px solid var(--border-bright);
+    background:var(--bg-panel-raised);
+    color:var(--text-2);
+    border-radius:999px;
+    font-family:var(--font-label);
+    font-size:9.5px;
+    letter-spacing:0.8px;
+    text-transform:uppercase;
+    padding:6px 8px;
+    cursor:pointer;
+  }
+  .ap-mode-btn.active{
+    border-color:var(--steel-dim);
+    background:var(--steel-soft);
+    color:var(--steel);
+  }
+  .ap-mode-panel{ margin-bottom:10px; }
+  .ap-mode-panel input{
+    width:100%;
+    background:var(--bg-inset);
+    border:1px solid var(--border);
+    border-radius:var(--radius-s);
+    color:var(--text-1);
+    font-family:var(--font-mono);
+    font-size:12.5px;
+    padding:7px 8px;
+  }
+  .ap-buttons{ display:flex; gap:8px; }
+  .ap-buttons button{
+    flex:1;
+    border-radius:var(--radius-s);
+    font-family:var(--font-label);
+    font-size:10px;
+    letter-spacing:0.8px;
+    text-transform:uppercase;
+    padding:8px 10px;
+    cursor:pointer;
+    border:1px solid var(--border-bright);
+  }
+  .ap-buttons .btn-primary{
+    background:var(--steel-soft);
+    border-color:var(--steel-dim);
+    color:var(--steel);
+  }
+  .ap-buttons .btn-primary:disabled, .ap-buttons .btn-secondary:disabled{
+    opacity:0.45;
+    cursor:not-allowed;
+  }
+  .ap-buttons .btn-secondary{
+    background:var(--bg-panel-raised);
+    color:var(--text-2);
+  }
+
   /* ---------- FILES ---------- */
   .file-row{
     display:flex; align-items:center; gap:10px;
@@ -2052,6 +2129,42 @@
         </div>
       </div>
 
+      <!-- AUTOPILOT TRADING -->
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>
+            Autopilot Trading (Paper)
+          </div>
+          <span class="panel-tag demo" id="autopilot-tag"></span>
+        </div>
+        <div class="panel-body">
+          <div class="ap-metrics">
+            <div><div class="pv" id="ap-total-value">$100,000.00</div><div class="pk">PORTFOLIO VALUE</div></div>
+            <div><div class="pv" id="ap-pnl">+$0.00</div><div class="pk">P/L</div></div>
+            <div><div class="pv" id="ap-cash">$100,000.00</div><div class="pk">CASH</div></div>
+          </div>
+          <div class="ap-chart"><svg viewBox="0 0 100 32" preserveAspectRatio="none" id="ap-chart-svg"><path id="ap-chart-path" fill="none" stroke="#6fa677" stroke-width="1.6"/></svg></div>
+          <div class="ap-status" id="ap-status-line">Autopilot is idle.</div>
+          <div class="ap-controls">
+            <div class="ap-mode-toggle">
+              <button type="button" class="ap-mode-btn active" data-ap-mode="trades" id="ap-mode-trades">Trade Count</button>
+              <button type="button" class="ap-mode-btn" data-ap-mode="time" id="ap-mode-time">Run Until Time</button>
+            </div>
+            <div class="ap-mode-panel" id="ap-panel-trades">
+              <input type="number" id="ap-trade-count" min="1" max="500" value="15" placeholder="Number of trades">
+            </div>
+            <div class="ap-mode-panel" id="ap-panel-time" hidden>
+              <input type="time" id="ap-until-time">
+            </div>
+            <div class="ap-buttons">
+              <button type="button" class="btn-primary" id="ap-start-btn">Start Autopilot</button>
+              <button type="button" class="btn-secondary" id="ap-stop-btn" disabled>Stop</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- FUSION 360 -->
       <div class="panel">
         <div class="panel-head">
@@ -2293,12 +2406,13 @@
             <input type="radio" name="self-update-engine" value="vscode">
           </div>
         </div>
-        <div class="hint">The VS Code option requires the local "Future Self-Update Bridge" extension (vscode-extension/future-self-update-bridge) - it opens Copilot Chat with the request already typed in and submitted. Without that extension installed, it falls back to just opening VS Code with the prompt shown here to paste manually.</div>
+        <div class="hint">The VS Code option requires the local "Future Self-Update Bridge" extension (vscode-extension/future-self-update-bridge) - it opens Copilot Chat in Agent mode with the request already typed in and submitted. Without that extension installed, it falls back to just opening VS Code with the prompt shown here to paste manually. This only works when Future is running on the desktop instance - the VM-hosted server can't open a local VS Code window.</div>
       </div>
       <div class="wizard-test-result" id="self-update-result"></div>
     </div>
     <div class="settings-actions">
       <button class="btn" onclick="SelfUpdateModal.close()">Close</button>
+      <button class="btn" id="self-update-push-btn" style="display:none;">Push to GitHub</button>
       <button class="btn primary" id="self-update-execute-btn">Execute</button>
     </div>
   </div>
@@ -2517,6 +2631,7 @@ const serviceStatus = {
   calendar: false,
   gmail: false,
   stocks: false,
+  autopilot: false,
   fusion: false,
   slicer: false,
   files: false,
@@ -2529,6 +2644,7 @@ const tagByService = {
   calendar: 'calendar-tag',
   gmail: 'gmail-tag',
   stocks: 'stocks-tag',
+  autopilot: 'autopilot-tag',
   fusion: 'fusion-tag',
   slicer: 'slicer-tag',
   files: 'files-tag',
@@ -2789,6 +2905,122 @@ async function refreshStocks() {
   }).join('');
   document.getElementById('stocks-list').innerHTML = rows || '<div class="row-sub">No live watchlist data available.</div>';
   setServiceLive('stocks', live);
+}
+
+let autopilotMode = 'trades';
+let autopilotBusy = false;
+
+function setAutopilotMode(mode) {
+  autopilotMode = mode;
+  document.getElementById('ap-mode-trades').classList.toggle('active', mode === 'trades');
+  document.getElementById('ap-mode-time').classList.toggle('active', mode === 'time');
+  document.getElementById('ap-panel-trades').hidden = mode !== 'trades';
+  document.getElementById('ap-panel-time').hidden = mode !== 'time';
+}
+
+document.getElementById('ap-mode-trades')?.addEventListener('click', () => setAutopilotMode('trades'));
+document.getElementById('ap-mode-time')?.addEventListener('click', () => setAutopilotMode('time'));
+
+document.getElementById('ap-start-btn')?.addEventListener('click', async () => {
+  if (autopilotBusy) return;
+  autopilotBusy = true;
+  const startBtn = document.getElementById('ap-start-btn');
+  startBtn.disabled = true;
+  try {
+    const body = { mode: autopilotMode };
+    if (autopilotMode === 'trades') {
+      body.trade_count = Math.max(1, parseInt(document.getElementById('ap-trade-count').value, 10) || 15);
+    } else {
+      body.until_time = document.getElementById('ap-until-time').value;
+      if (!body.until_time) {
+        document.getElementById('ap-status-line').textContent = 'Pick a time for autopilot to run until.';
+        return;
+      }
+    }
+    await api('/api/autopilot/start', { method: 'POST', body: JSON.stringify(body) });
+    await refreshAutopilot();
+  } catch (e) {
+    document.getElementById('ap-status-line').textContent = `Could not start autopilot: ${e.message || e}`;
+  } finally {
+    autopilotBusy = false;
+    startBtn.disabled = false;
+  }
+});
+
+document.getElementById('ap-stop-btn')?.addEventListener('click', async () => {
+  try {
+    await api('/api/autopilot/stop', { method: 'POST' });
+  } catch (e) {
+    // Ignore; status refresh below will reflect actual state.
+  }
+  await refreshAutopilot();
+});
+
+function autopilotChartPath(history) {
+  const values = (history || []).map((point) => Number(point.v || 0));
+  if (values.length < 2) return '';
+  const w = 100;
+  const h = 32;
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const step = w / (values.length - 1);
+  const pts = values.map((v, i) => {
+    const y = h - ((v - min) / (max - min || 1)) * h;
+    return `${(i * step).toFixed(2)},${y.toFixed(2)}`;
+  });
+  return `M${pts.join(' L')}`;
+}
+
+async function refreshAutopilot() {
+  let live = false;
+  try {
+    const data = await api('/api/autopilot/status');
+    live = true;
+
+    const cash = Number(data.portfolio?.cash || 0);
+    const totalValue = Number(data.total_value || cash);
+    const pnl = totalValue - 100000;
+    const pnlUp = pnl >= 0;
+
+    document.getElementById('ap-total-value').textContent = `$${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const pnlEl = document.getElementById('ap-pnl');
+    pnlEl.textContent = `${pnlUp ? '+' : '-'}$${Math.abs(pnl).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    pnlEl.classList.toggle('up', pnlUp);
+    pnlEl.classList.toggle('down', !pnlUp);
+    document.getElementById('ap-cash').textContent = `$${cash.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+    const chartPath = autopilotChartPath(data.value_history);
+    const chartStroke = pnlUp ? '#6fa677' : '#bd5b4f';
+    const pathEl = document.getElementById('ap-chart-path');
+    pathEl.setAttribute('d', chartPath);
+    pathEl.setAttribute('stroke', chartStroke);
+
+    const startBtn = document.getElementById('ap-start-btn');
+    const stopBtn = document.getElementById('ap-stop-btn');
+    startBtn.disabled = !!data.running;
+    stopBtn.disabled = !data.running;
+
+    const statusEl = document.getElementById('ap-status-line');
+    const holds = Math.max(0, (data.steps_done || 0) - (data.trades_done || 0));
+    if (data.running) {
+      const goalText = data.mode === 'trades'
+        ? `${data.trades_done || 0} of ${data.target_trades} trades, ${holds} holds skipped`
+        : `running until ${data.until_time}`;
+      const lastAction = data.last_result?.action ? ` Last move: ${data.last_result.action.toUpperCase()} ${data.last_result.symbol || ''}.` : '';
+      statusEl.textContent = `Autopilot is running (${goalText}).${lastAction}`;
+    } else if (data.stop_reason === 'trade_count_reached') {
+      statusEl.textContent = `Autopilot finished its ${data.trades_done} trade run (${holds} holds skipped).`;
+    } else if (data.stop_reason === 'time_reached') {
+      statusEl.textContent = `Autopilot stopped at the scheduled time (${data.until_time}).`;
+    } else if (data.stop_reason === 'manual_stop') {
+      statusEl.textContent = 'Autopilot was stopped manually.';
+    } else {
+      statusEl.textContent = 'Autopilot is idle.';
+    }
+  } catch (e) {
+    live = false;
+  }
+  setServiceLive('autopilot', live);
 }
 
 let calendarRange = 'day';
@@ -5346,20 +5578,28 @@ const SelfUpdateModal = {
     }
     const engine = this.selectedEngine();
     if (resultEl) { resultEl.className = 'wizard-test-result show'; resultEl.textContent = 'Working...'; }
+    const pushBtn = document.getElementById('self-update-push-btn');
+    if (pushBtn) pushBtn.style.display = 'none';
 
     try {
       if (engine === 'vscode') {
-        const result = await api('/api/self-update/vscode-prompt', {
-          method: 'POST',
-          body: JSON.stringify({ instruction, target_files: [] }),
-        });
-        if (resultEl) {
-          resultEl.className = 'wizard-test-result show ok';
-          resultEl.textContent = result.auto_submit
-            ? `Sent to Copilot Chat in VS Code automatically:\n\n${result.prompt}`
-            : `Opened VS Code. Paste this into Copilot Chat:\n\n${result.prompt}`;
+        try {
+          const result = await api('/api/self-update/vscode-prompt', {
+            method: 'POST',
+            body: JSON.stringify({ instruction, target_files: [] }),
+          });
+          if (resultEl) {
+            resultEl.className = 'wizard-test-result show ok';
+            resultEl.textContent = result.auto_submit
+              ? `Opened VS Code and sent to Copilot Chat automatically:\n\n${result.prompt}`
+              : `Opened VS Code. Paste this into Copilot Chat:\n\n${result.prompt}`;
+          }
+          addMessage('Future', `Sent to Copilot Chat in VS Code: "${instruction}"`);
+          if (pushBtn) pushBtn.style.display = '';
+        } catch (error) {
+          if (resultEl) { resultEl.className = 'wizard-test-result show fail'; resultEl.textContent = `Could not open VS Code: ${error.message}`; }
+          addMessage('Future', `Self-update (VS Code) failed: ${error.message}`);
         }
-        addMessage('Future', `Sent to Copilot Chat in VS Code: "${instruction}"`);
       } else {
         const plan = await api('/api/self-update/plan', {
           method: 'POST',
@@ -5381,10 +5621,26 @@ const SelfUpdateModal = {
       if (resultEl) { resultEl.className = 'wizard-test-result show fail'; resultEl.textContent = `Failed: ${error.message}`; }
     }
   },
+  async push() {
+    const resultEl = document.getElementById('self-update-result');
+    const instruction = String(document.getElementById('self-update-instruction')?.value || '').trim();
+    if (resultEl) { resultEl.className = 'wizard-test-result show'; resultEl.textContent = 'Pushing to GitHub...'; }
+    try {
+      const result = await api('/api/self-update/push-to-github', {
+        method: 'POST',
+        body: JSON.stringify({ commit_message: instruction ? `Future self-update: ${instruction}` : '' }),
+      });
+      if (resultEl) { resultEl.className = 'wizard-test-result show ok'; resultEl.textContent = `Pushed to GitHub.\n${result.commit}\n${result.push}`; }
+      addMessage('Future', 'Pushed reviewed self-update changes to GitHub.');
+    } catch (error) {
+      if (resultEl) { resultEl.className = 'wizard-test-result show fail'; resultEl.textContent = `Push failed: ${error.message}`; }
+    }
+  },
 };
 
 document.getElementById('chat-self-update-open')?.addEventListener('click', () => SelfUpdateModal.open());
 document.getElementById('self-update-execute-btn')?.addEventListener('click', () => SelfUpdateModal.execute());
+document.getElementById('self-update-push-btn')?.addEventListener('click', () => SelfUpdateModal.push());
 document.getElementById('self-update-overlay')?.addEventListener('click', (e) => {
   if (e.target.id === 'self-update-overlay') SelfUpdateModal.close();
 });
@@ -5439,6 +5695,7 @@ function initCompactDropdownLayout() {
     { title: 'Gmail', node: panelFromTag('gmail-tag'), tagId: 'gmail-tag', view: 'gmail', open: false },
     { title: 'System Performance', node: panelFromTag('perf-tag'), tagId: 'perf-tag', view: 'system', open: false },
     { title: 'Stocks', node: panelFromTag('stocks-tag'), tagId: 'stocks-tag', view: 'stocks', open: false },
+    { title: 'Autopilot Trading', node: panelFromTag('autopilot-tag'), tagId: 'autopilot-tag', view: 'autopilot', open: false },
     { title: 'Fusion 360', node: panelFromTag('fusion-tag'), tagId: 'fusion-tag', view: 'fusion', open: false },
     { title: 'Slicer', node: panelFromTag('slicer-tag'), tagId: 'slicer-tag', view: 'slicer', open: false },
     { title: 'Recent Downloads', node: panelFromTag('files-tag'), tagId: 'files-tag', view: 'files', open: false },
@@ -5461,6 +5718,7 @@ function refreshAll() {
   refreshSystemStats();
   Spotify.refresh();
   refreshStocks();
+  refreshAutopilot();
   refreshCalendar();
   refreshGmail();
   refreshFusion();

@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import time
 from pathlib import Path
 from statistics import mean, pstdev
 from typing import Dict, List, Optional
@@ -63,18 +64,23 @@ class AutopilotPaperTrader:
         self.goal = {"target_value": 120000.0, "target_reached": False}
         self.rl_trader = RLTrader(self.state_path.with_name("autopilot_rl_state.json"))
         self.last_price = None
-        self.watchlist = ["AAPL", "MSFT", "NVDA", "TSLA", "AMZN", "META"]
+        self.watchlist = ["AAPL", "MSFT", "NVDA", "TSLA", "AMZN", "META", "GOOGL", "AMD", "NFLX", "JPM"]
         self.live_prices_enabled = True
         self.price_history: Dict[str, List[float]] = {}
         self.entry_reference: Dict[str, float] = {}
         self.entry_step: Dict[str, int] = {}
         self.position_peak_price: Dict[str, float] = {}
         self.session_peak_value = 100000.0
-        self.max_position_fraction = 0.35
+        self.max_position_fraction = 0.20
+        self.max_concurrent_positions = 6
         self.max_drawdown_fraction = 0.03
         self.take_profit_fraction = 0.012
         self.stop_loss_fraction = 0.008
         self.trailing_stop_fraction = 0.007
+        self.current_prices: Dict[str, float] = {}
+        self.step_counter = 0
+        self.last_trade_step = -5
+        self.value_history: List[Dict[str, object]] = []
         self._load_state()
 
     def _load_state(self):
@@ -83,12 +89,33 @@ class AutopilotPaperTrader:
                 data = json.loads(self.state_path.read_text())
                 self.portfolio = data.get("portfolio", self.portfolio)
                 self.goal = data.get("goal", self.goal)
+                self.current_prices = data.get("current_prices", {})
+                self.price_history = data.get("price_history", {})
+                self.entry_reference = data.get("entry_reference", {})
+                self.entry_step = data.get("entry_step", {})
+                self.position_peak_price = data.get("position_peak_price", {})
+                self.session_peak_value = data.get("session_peak_value", self.session_peak_value)
+                self.step_counter = data.get("step_counter", 0)
+                self.last_trade_step = data.get("last_trade_step", -5)
+                self.value_history = data.get("value_history", [])
             except Exception:
                 self.portfolio = {"cash": 100000.0, "positions": {}}
                 self.goal = {"target_value": 120000.0, "target_reached": False}
 
     def _save_state(self):
-        self.state_path.write_text(json.dumps({"portfolio": self.portfolio, "goal": self.goal}, indent=2))
+        self.state_path.write_text(json.dumps({
+            "portfolio": self.portfolio,
+            "goal": self.goal,
+            "current_prices": self.current_prices,
+            "price_history": self.price_history,
+            "entry_reference": self.entry_reference,
+            "entry_step": self.entry_step,
+            "position_peak_price": self.position_peak_price,
+            "session_peak_value": self.session_peak_value,
+            "step_counter": self.step_counter,
+            "last_trade_step": self.last_trade_step,
+            "value_history": self.value_history[-300:],
+        }, indent=2))
 
     def _alpaca_market_config(self) -> Dict[str, str]:
         return {
@@ -197,7 +224,12 @@ class AutopilotPaperTrader:
 
         held_symbols = [s for s, q in self.portfolio["positions"].items() if int(q) > 0]
         total_value = self._total_value(prices)
-        self.session_peak_value = max(float(self.session_peak_value), float(total_value))
+        if not held_symbols:
+            # With no open positions there is nothing left to protect, so a stale peak
+            # from a prior losing streak should not permanently veto new entries.
+            self.session_peak_value = float(total_value)
+        else:
+            self.session_peak_value = max(float(self.session_peak_value), float(total_value))
         drawdown = 0.0
         if self.session_peak_value > 0:
             drawdown = (self.session_peak_value - total_value) / self.session_peak_value
@@ -205,12 +237,12 @@ class AutopilotPaperTrader:
         avg_trend = mean(list(trends.values())) if trends else 0.0
         avg_momentum = mean(list(momentum_map.values())) if momentum_map else 0.0
         avg_volatility = mean(list(volatility_map.values())) if volatility_map else 0.0
-        risk_off_mode = drawdown >= self.max_drawdown_fraction or (avg_trend < -0.006 and avg_momentum < -0.004)
+        risk_off_mode = drawdown >= self.max_drawdown_fraction or (avg_trend < -0.0015 and avg_momentum < -0.001)
 
         market_regime = "neutral"
-        if avg_trend > 0.0015 and avg_momentum > 0.001 and avg_volatility < 0.02:
+        if avg_trend > 0.0004 and avg_momentum > 0.0003 and avg_volatility < 0.02:
             market_regime = "trend"
-        elif abs(avg_trend) < 0.001 and avg_volatility >= 0.01:
+        elif abs(avg_trend) < 0.0003 and avg_volatility >= 0.002:
             market_regime = "chop"
 
         if steps_since_last_trade < 1 and not risk_off_mode:
@@ -350,24 +382,25 @@ class AutopilotPaperTrader:
             reversion_score = ((-move) * 1.5) + ((50.0 - rsi) / 100.0) - (volatility * 1.2)
             score = trend_score if market_regime == "trend" else reversion_score if market_regime == "chop" else (trend_score + reversion_score) / 2.0
 
-            pullback_in_uptrend = trend > 0.001 and move < -0.0007 and momentum > -0.01 and 35.0 <= rsi <= 62.0
-            breakout_follow = trend > 0.003 and momentum > 0.004 and move > 0.0 and rsi <= 68.0
-            mean_reversion_bounce = move <= -0.003 and rsi <= 38.0 and momentum >= -0.02
+            pullback_in_uptrend = trend > 0.0002 and move < -0.00015 and momentum > -0.006 and 35.0 <= rsi <= 65.0
+            breakout_follow = trend > 0.0006 and momentum > 0.0008 and move > 0.0 and rsi <= 70.0
+            mean_reversion_bounce = move <= -0.0006 and rsi <= 45.0 and momentum >= -0.01
 
             existing_qty = int(self.portfolio["positions"].get(symbol, 0))
             current_notional = existing_qty * float(prices[symbol])
             allocation_used = 0.0 if total_value <= 0 else current_notional / total_value
             within_position_limit = allocation_used < self.max_position_fraction
+            within_diversification_cap = symbol in held_symbols or len(held_symbols) < self.max_concurrent_positions
 
             allowed_setup = pullback_in_uptrend or breakout_follow
             if market_regime == "chop":
                 allowed_setup = mean_reversion_bounce
 
-            if within_position_limit and allowed_setup:
+            if within_position_limit and within_diversification_cap and allowed_setup:
                 base_allocation = 0.07 if market_regime == "chop" else 0.09
                 conviction_boost = min(0.07, max(0.0, score * 4.0))
                 volatility_penalty = min(0.05, volatility * 6.0)
-                allocation = max(0.03, min(0.18, base_allocation + conviction_boost - volatility_penalty))
+                allocation = max(0.03, min(0.15, base_allocation + conviction_boost - volatility_penalty))
                 candidates.append(
                     {
                         "symbol": symbol,
@@ -390,17 +423,20 @@ class AutopilotPaperTrader:
                 "sell_fraction": 0.0,
             }
 
-        # Keep some exploration alive so the strategy does not freeze in narrow windows.
-        if not held_symbols and step % 5 == 0 and cash >= min(prices.values()) and not risk_off_mode:
+        # Keep some exploration alive so the strategy does not freeze in narrow windows,
+        # and keep diversifying into new names even while other positions are already open.
+        if len(held_symbols) < self.max_concurrent_positions and step % 3 == 0 and cash >= min(prices.values()) and not risk_off_mode:
+            unheld_symbols = [s for s in prices.keys() if s not in held_symbols]
+            candidate_pool = unheld_symbols or list(prices.keys())
             exploratory_symbol = max(
-                prices.keys(),
+                candidate_pool,
                 key=lambda s: float(trends.get(s, 0.0)) + float(momentum_map.get(s, 0.0)) - float(volatility_map.get(s, 0.0)),
             )
             return {
                 "action": "buy",
                 "symbol": exploratory_symbol,
                 "score": 0.001,
-                "reason": "we took a small exploratory entry to sample momentum",
+                "reason": "we took a small exploratory entry to sample momentum and diversify",
                 "move": float(moves.get(exploratory_symbol, 0.0)),
                 "allocation_fraction": 0.05,
                 "sell_fraction": 0.0,
@@ -425,6 +461,10 @@ class AutopilotPaperTrader:
         self.entry_step = {}
         self.position_peak_price = {}
         self.session_peak_value = float(start_cash)
+        self.current_prices = {}
+        self.step_counter = 0
+        self.last_trade_step = -5
+        self.value_history = []
         self._save_state()
 
     def run_cycle(self, symbol: str, price: float, quantity: int = 1) -> Dict[str, object]:
@@ -610,6 +650,126 @@ class AutopilotPaperTrader:
 
         self._save_state()
         return results
+
+    def run_live_step(self) -> Dict[str, object]:
+        """Advance the persisted autopilot session by a single trading step (used by the live dashboard loop)."""
+        watchlist = list(self.watchlist)
+        if not self.current_prices:
+            live_prices = self._fetch_live_prices(watchlist)
+            self.current_prices = live_prices if live_prices else {
+                ticker: 100.0 * (1.0 + 0.06 * index) for index, ticker in enumerate(watchlist)
+            }
+            self.price_history = {ticker: [float(price)] for ticker, price in self.current_prices.items()}
+
+        previous_prices = dict(self.current_prices)
+        live_prices = self._fetch_live_prices(watchlist)
+        if live_prices:
+            for ticker, latest_price in live_prices.items():
+                if ticker in self.current_prices:
+                    self.current_prices[ticker] = max(1.0, float(latest_price))
+        else:
+            self.current_prices = self._next_synthetic_prices(self.current_prices, self.step_counter)
+
+        for ticker, latest_price in self.current_prices.items():
+            history = self.price_history.setdefault(ticker, [])
+            history.append(float(latest_price))
+            if len(history) > 40:
+                del history[:-40]
+
+        step = self.step_counter
+        decision = self._choose_best_trade(
+            self.current_prices,
+            previous_prices,
+            100.0,
+            step,
+            step - self.last_trade_step,
+        )
+        chosen_symbol = str(decision["symbol"])
+        action = str(decision["action"])
+        selected_price = float(self.current_prices[chosen_symbol])
+        move = float(decision.get("move", 0.0))
+        allocation_fraction = float(decision.get("allocation_fraction", 0.08))
+        sell_fraction = float(decision.get("sell_fraction", 0.5))
+        reason = str(decision["reason"])
+        executed_quantity = 0
+        previous_value = self._total_value(previous_prices)
+
+        if action == "buy":
+            budget = self.portfolio["cash"] * max(0.03, min(0.20, allocation_fraction))
+            quantity = max(1, int(budget // selected_price))
+            cost = selected_price * quantity
+            if self.portfolio["cash"] >= cost:
+                self.portfolio["cash"] -= cost
+                self.portfolio["positions"][chosen_symbol] = self.portfolio["positions"].get(chosen_symbol, 0) + quantity
+                if self.portfolio["positions"][chosen_symbol] > 0:
+                    self.entry_reference[chosen_symbol] = selected_price
+                    self.entry_step[chosen_symbol] = step
+                    self.position_peak_price[chosen_symbol] = max(
+                        float(self.position_peak_price.get(chosen_symbol, selected_price)),
+                        selected_price,
+                    )
+                executed_quantity = quantity
+                self.last_trade_step = step
+            else:
+                action = "hold"
+                reason = "cash was too low for the planned entry"
+        elif action == "sell":
+            existing = int(self.portfolio["positions"].get(chosen_symbol, 0))
+            if existing >= 1:
+                quantity = max(1, int(existing * max(0.25, min(1.0, sell_fraction))))
+                self.portfolio["positions"][chosen_symbol] = existing - quantity
+                self.portfolio["cash"] += selected_price * quantity
+                if self.portfolio["positions"][chosen_symbol] <= 0 and chosen_symbol in self.entry_reference:
+                    del self.entry_reference[chosen_symbol]
+                if self.portfolio["positions"][chosen_symbol] <= 0 and chosen_symbol in self.entry_step:
+                    del self.entry_step[chosen_symbol]
+                if self.portfolio["positions"][chosen_symbol] <= 0 and chosen_symbol in self.position_peak_price:
+                    del self.position_peak_price[chosen_symbol]
+                executed_quantity = quantity
+                self.last_trade_step = step
+            else:
+                action = "hold"
+                reason = "we had no shares in that symbol to sell"
+
+        total_value = self._total_value(self.current_prices)
+        self.goal["target_reached"] = total_value >= self.goal["target_value"]
+        reward = 0.35 if total_value > previous_value else -0.1
+        self.rl_trader.learn([move, abs(move), 0.03], action, reward)
+        self.last_price = selected_price
+        self.step_counter = step + 1
+
+        self.value_history.append({"t": time.time(), "v": round(total_value, 2)})
+        if len(self.value_history) > 300:
+            self.value_history = self.value_history[-300:]
+
+        self._save_state()
+
+        return {
+            "status": "paper-autopilot",
+            "mode": "paper",
+            "symbol": chosen_symbol,
+            "price": selected_price,
+            "action": action,
+            "quantity": executed_quantity,
+            "reason": reason,
+            "portfolio": dict(self.portfolio),
+            "goal": dict(self.goal),
+            "total_value": round(total_value, 2),
+            "watchlist": list(watchlist),
+            "watched_prices": {k: round(v, 4) for k, v in self.current_prices.items()},
+            "step": step,
+        }
+
+    def get_autopilot_dashboard_state(self) -> Dict[str, object]:
+        total_value = self._total_value(self.current_prices) if self.current_prices else float(self.portfolio["cash"])
+        return {
+            "portfolio": dict(self.portfolio),
+            "goal": dict(self.goal),
+            "total_value": round(total_value, 2),
+            "watchlist": list(self.watchlist),
+            "value_history": list(self.value_history),
+            "step_counter": self.step_counter,
+        }
 
 
 class PaperTradingEngine:

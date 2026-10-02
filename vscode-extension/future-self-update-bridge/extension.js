@@ -13,7 +13,13 @@ function activate(context) {
           return;
         }
         try {
-          await vscode.commands.executeCommand("workbench.action.chat.open", { query: prompt });
+          await vscode.commands.executeCommand("workbench.action.chat.open", {
+            query: prompt,
+            mode: "agent",
+            isPartialQuery: true,
+          });
+          await new Promise((resolve) => setTimeout(resolve, 250));
+          await vscode.commands.executeCommand("workbench.action.chat.submit");
         } catch (err) {
           vscode.window.showErrorMessage(`Future self-update: could not open Copilot Chat (${err}).`);
         }

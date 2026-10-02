@@ -668,12 +668,27 @@ def generate_reply(text, personality, memory):
     if not client:
         return "OpenAI API key is not configured. Set OPENAI_API_KEY in your environment to enable cloud chat."
 
+    model_name = PRIMARY_MODEL or "gpt-5"
+    extra_kwargs = {}
+    if model_name.strip().lower().startswith("gpt-5"):
+        # Voice conversation needs quick turnaround for small talk, but harder
+        # questions (code/math/planning/analysis) still get more reasoning effort.
+        try:
+            from webtools import _query_reasoning_effort
+            effort = _query_reasoning_effort(text, asks_brief=False, asks_depth=False)
+        except Exception:
+            effort = "minimal"
+        extra_kwargs["reasoning_effort"] = effort
+        extra_kwargs["verbosity"] = "low" if effort in ("minimal", "low") else "medium"
+
     response = client.chat.completions.create(
-        model=PRIMARY_MODEL or "gpt-5",
+        model=model_name,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": text}
-        ]
+        ],
+        max_completion_tokens=500,
+        **extra_kwargs,
     )
     return response.choices[0].message.content
 

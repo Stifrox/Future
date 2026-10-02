@@ -71,24 +71,6 @@ def _env(name: str, default: str = "") -> str:
     return os.getenv(name, default).strip()
 
 
-def generate_vscode_copilot_prompt(update_plan: dict) -> str:
-    """Generate a prompt for VS Code Copilot to execute autonomous code updates."""
-    prompt = f"""
-You are an autonomous code update agent integrated with VS Code. Execute the following update plan:
-
-UPDATE PLAN:
-{json.dumps(update_plan, indent=2)}
-
-INSTRUCTIONS:
-1. Open each file listed in the 'edits' array
-2. For each edit, apply the change according to its type (insert_line, replace_text, append_text)
-3. Save all modified files
-4. Execute the test_plan commands to verify the changes
-5. Report completion status and any errors encountered
-    """
-    return prompt
-
-
 _ANSI_RE = re.compile(r"\x1B\[[0-?]*[ -/]*[@-~]")
 _FILE_EXT_BY_KIND = {
     "html": ".html",
@@ -1548,7 +1530,61 @@ def _reply_with_ollama_fallback(query: str) -> Optional[str]:
     return None
 
 
-def _response_length_profile(query: str) -> tuple[int, str]:
+def _query_reasoning_effort(query: str, asks_brief: bool, asks_depth: bool) -> str:
+    """Scale GPT-5 reasoning effort to how hard the question actually is.
+
+    Small talk and quick lookups stay minimal (fast); genuinely hard problems
+    (code, math, multi-step planning/analysis) get more effort so quality
+    doesn't suffer just because we sped up casual chat.
+    """
+    lowered = (query or "").lower().strip()
+    word_count = len(lowered.split())
+
+    hard_markers = [
+        "debug", "refactor", "architecture", "algorithm", "optimize", "optimization",
+        "prove", "proof", "derive", "derivation", "equation", "calculate", "solve for",
+        "write a function", "write code", "write a script", "implement", "regex",
+        "complex", "complicated", "difficult problem", "multi-step",
+        "strategy for", "business plan", "analyze", "analysis", "compare and contrast",
+        "pros and cons", "trade-offs", "tradeoffs", "root cause", "troubleshoot",
+    ]
+    moderate_markers = [
+        "explain", "how does", "how do i", "why does", "why is",
+        "what is the difference", "summarize", "summary",
+        "help me understand", "walk me through", "plan for", "design a",
+    ]
+    casual_markers = [
+        "hey", "hi", "hello", "what's up", "whats up", "how are you",
+        "thanks", "thank you", "lol", "haha", "good morning", "good night",
+        "sup", "nice", "cool", "ok", "okay",
+    ]
+
+    has_code_block = "```" in query or bool(
+        re.search(r"\bdef \w+\(|\bclass \w+|\bfunction\s*\(|[;{}]", query)
+    )
+    has_math = bool(re.search(r"\d+\s*[\+\-\*/\^=]\s*\d+", query))
+
+    is_casual = word_count <= 8 and any(marker in lowered for marker in casual_markers)
+    is_hard = (
+        has_code_block
+        or has_math
+        or any(marker in lowered for marker in hard_markers)
+        or word_count > 60
+    )
+    is_moderate = any(marker in lowered for marker in moderate_markers) or word_count > 25
+
+    if asks_brief and not is_hard:
+        return "minimal"
+    if is_hard:
+        return "high" if (has_code_block or has_math or word_count > 60) else "medium"
+    if asks_depth or is_moderate:
+        return "medium"
+    if is_casual:
+        return "minimal"
+    return "low"
+
+
+def _response_length_profile(query: str) -> tuple[int, str, str]:
     lowered = (query or "").lower()
 
     brief_markers = [
@@ -1581,12 +1617,15 @@ def _response_length_profile(query: str) -> tuple[int, str]:
 
     asks_brief = any(marker in lowered for marker in brief_markers)
     asks_depth = any(marker in lowered for marker in depth_markers)
+    reasoning_effort = _query_reasoning_effort(query, asks_brief, asks_depth)
 
     if asks_brief and not asks_depth:
-        return 280, "The user explicitly asked for a short answer. Keep it tight and compact."
+        return 280, "The user explicitly asked for a short answer. Keep it tight and compact.", reasoning_effort
     if asks_depth and not asks_brief:
-        return 1600, "The user explicitly asked for depth. Provide a long, step-by-step, thorough answer."
-    return 650, "Keep answers concise by default unless the user asks for greater depth."
+        return 1600, "The user explicitly asked for depth. Provide a long, step-by-step, thorough answer.", reasoning_effort
+    if reasoning_effort in ("medium", "high"):
+        return 950, "This is a harder question; take the space needed to be thorough and correct.", reasoning_effort
+    return 650, "Keep answers concise by default unless the user asks for greater depth.", reasoning_effort
 
 
 def _model_candidates() -> List[str]:
@@ -1598,17 +1637,29 @@ def _model_candidates() -> List[str]:
     return ordered
 
 
-def _try_model_candidates(messages, max_tokens: int) -> Optional[str]:
+def _is_gpt5_reasoning_model(model_name: str) -> bool:
+    return (model_name or "").strip().lower().startswith("gpt-5")
+
+
+def _try_model_candidates(messages, max_tokens: int, reasoning_effort: Optional[str] = None) -> Optional[str]:
     """Call each configured model in order and return the first successful cleaned reply."""
     for model_name in _model_candidates():
         try:
             if _is_anthropic_model(model_name):
                 cleaned = _anthropic_reply(messages, model_name=model_name, max_tokens=max_tokens)
             elif _client:
+                extra_kwargs = {}
+                if _is_gpt5_reasoning_model(model_name):
+                    # Conversational chat doesn't need deep reasoning by default; scale effort
+                    # up only for genuinely harder problems so quality doesn't suffer.
+                    effort = reasoning_effort or ("low" if max_tokens > 700 else "minimal")
+                    extra_kwargs["reasoning_effort"] = effort
+                    extra_kwargs["verbosity"] = "low" if effort in ("minimal", "low") else "medium"
                 response = _client.chat.completions.create(
                     model=model_name,
                     messages=messages,
                     max_completion_tokens=max_tokens,
+                    **extra_kwargs,
                 )
                 text = response.choices[0].message.content
                 cleaned = _clean_model_text(text or "") if text else None
@@ -1643,7 +1694,7 @@ def generate_opening_greeting(client_time: Optional[str] = None) -> str:
         {"role": "user", "content": "(system: generate the opening greeting now)"},
     ]
     try:
-        cleaned = _try_model_candidates(messages, max_tokens=60)
+        cleaned = _try_model_candidates(messages, max_tokens=60, reasoning_effort="minimal")
         if cleaned:
             return cleaned.strip().strip('"')
     except Exception as exc:
@@ -1683,13 +1734,13 @@ def handle_query(query: str, recent_context=None, client_time: Optional[str] = N
             {"role": "user", "content": query},
         ]
 
-    max_tokens, style_directive = _response_length_profile(query)
+    max_tokens, style_directive, reasoning_effort = _response_length_profile(query)
 
     if messages and messages[0].get("role") == "system":
         system_content = str(messages[0].get("content", "")).strip()
         messages[0]["content"] = f"{system_content}\n\nCurrent response style: {style_directive}"
 
-    cleaned = _try_model_candidates(messages, max_tokens)
+    cleaned = _try_model_candidates(messages, max_tokens, reasoning_effort=reasoning_effort)
     if cleaned:
         if memory is not None:
             remember(memory, query, cleaned)

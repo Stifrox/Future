@@ -8,6 +8,7 @@ import base64
 import secrets
 import subprocess
 import tempfile
+import threading
 import time
 import urllib.parse
 import webbrowser
@@ -109,6 +110,76 @@ else:
     )
 
 trader = AutopilotPaperTrader() if AutopilotPaperTrader else None
+
+
+class AutopilotSessionState:
+    """Tracks the background thread driving the live paper-trading autopilot loop."""
+
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.thread: Optional[threading.Thread] = None
+        self.stop_event = threading.Event()
+        self.running = False
+        self.mode: Optional[str] = None
+        self.target_trades: Optional[int] = None
+        self.until_time: Optional[str] = None
+        self.trades_done = 0
+        self.steps_done = 0
+        self.started_at: Optional[str] = None
+        self.last_result: Optional[Dict[str, object]] = None
+        self.stop_reason: Optional[str] = None
+
+
+autopilot_session = AutopilotSessionState()
+AUTOPILOT_STEP_INTERVAL_SECONDS = 4
+
+
+def _autopilot_loop():
+    while not autopilot_session.stop_event.is_set():
+        if trader is None:
+            break
+        try:
+            result = trader.run_live_step()
+        except Exception as exc:
+            with autopilot_session.lock:
+                autopilot_session.last_result = {"error": str(exc)}
+            break
+
+        with autopilot_session.lock:
+            autopilot_session.steps_done += 1
+            if str(result.get("action", "hold")).lower() != "hold":
+                autopilot_session.trades_done += 1
+            autopilot_session.last_result = result
+            done = False
+            if autopilot_session.mode == "trades" and autopilot_session.target_trades is not None:
+                if autopilot_session.trades_done >= autopilot_session.target_trades:
+                    autopilot_session.stop_reason = "trade_count_reached"
+                    done = True
+            elif autopilot_session.mode == "time" and autopilot_session.until_time:
+                now = datetime.now()
+                try:
+                    hour, minute = (int(part) for part in autopilot_session.until_time.split(":"))
+                    target = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+                except Exception:
+                    target = None
+                if target and now >= target:
+                    autopilot_session.stop_reason = "time_reached"
+                    done = True
+        if done:
+            break
+        if autopilot_session.stop_event.wait(AUTOPILOT_STEP_INTERVAL_SECONDS):
+            break
+
+    with autopilot_session.lock:
+        autopilot_session.running = False
+
+
+class AutopilotStartRequest(BaseModel):
+    mode: str
+    trade_count: Optional[int] = None
+    until_time: Optional[str] = None
+
+
 CHAT_CONTEXT_MAX_LINES = int(os.getenv("FUTURE_CHAT_CONTEXT_LINES", "20"))
 CHAT_CONTEXT_LINES = deque(maxlen=max(2, CHAT_CONTEXT_MAX_LINES))
 CHAT_SESSIONS = ChatSessionStore()
@@ -274,6 +345,10 @@ class SelfUpdatePlanRequest(BaseModel):
     instruction: str
     target_files: List[str] = []
     scope: str = "auto"
+
+
+class SelfUpdatePushRequest(BaseModel):
+    commit_message: str = ""
 
 
 class ContentRunRequest(BaseModel):
@@ -1241,6 +1316,86 @@ def stocks_watchlist() -> List[Dict[str, object]]:
         raise HTTPException(status_code=503, detail=f"Live stock feed unavailable: {exc}") from exc
 
 
+@app.get("/api/autopilot/status")
+def autopilot_status() -> Dict[str, object]:
+    """Get the autopilot paper-trading portfolio, value history, and current run session state."""
+    if trader is None:
+        raise HTTPException(status_code=503, detail="Autopilot trading is unavailable on this installation")
+    dashboard_state = trader.get_autopilot_dashboard_state()
+    with autopilot_session.lock:
+        session_info = {
+            "running": autopilot_session.running,
+            "mode": autopilot_session.mode,
+            "target_trades": autopilot_session.target_trades,
+            "until_time": autopilot_session.until_time,
+            "trades_done": autopilot_session.trades_done,
+            "steps_done": autopilot_session.steps_done,
+            "started_at": autopilot_session.started_at,
+            "last_result": autopilot_session.last_result,
+            "stop_reason": autopilot_session.stop_reason,
+        }
+    return {**dashboard_state, **session_info}
+
+
+@app.post("/api/autopilot/start")
+def autopilot_start(payload: AutopilotStartRequest) -> Dict[str, object]:
+    """Start the autopilot paper-trading loop until a trade count or a clock time is reached."""
+    if trader is None:
+        raise HTTPException(status_code=503, detail="Autopilot trading is unavailable on this installation")
+
+    mode = (payload.mode or "").strip().lower()
+    if mode not in {"trades", "time"}:
+        raise HTTPException(status_code=400, detail="mode must be 'trades' or 'time'")
+
+    with autopilot_session.lock:
+        if autopilot_session.running:
+            raise HTTPException(status_code=409, detail="Autopilot is already running")
+
+        if mode == "trades":
+            trade_count = payload.trade_count or 0
+            if trade_count <= 0:
+                raise HTTPException(status_code=400, detail="trade_count must be a positive number")
+            autopilot_session.target_trades = int(trade_count)
+            autopilot_session.until_time = None
+        else:
+            until_time = (payload.until_time or "").strip()
+            if not re.match(r"^\d{1,2}:\d{2}$", until_time):
+                raise HTTPException(status_code=400, detail="until_time must be in HH:MM format")
+            hour, minute = (int(part) for part in until_time.split(":"))
+            if not (0 <= hour <= 23 and 0 <= minute <= 59):
+                raise HTTPException(status_code=400, detail="until_time must be a valid 24-hour time")
+            now = datetime.now()
+            target = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+            if target <= now:
+                raise HTTPException(status_code=400, detail="until_time must be later than the current time")
+            autopilot_session.until_time = f"{hour:02d}:{minute:02d}"
+            autopilot_session.target_trades = None
+
+        autopilot_session.mode = mode
+        autopilot_session.trades_done = 0
+        autopilot_session.steps_done = 0
+        autopilot_session.stop_reason = None
+        autopilot_session.last_result = None
+        autopilot_session.started_at = datetime.now().isoformat()
+        autopilot_session.stop_event = threading.Event()
+        autopilot_session.running = True
+        autopilot_session.thread = threading.Thread(target=_autopilot_loop, daemon=True)
+        autopilot_session.thread.start()
+
+    return {"status": "started", "mode": mode}
+
+
+@app.post("/api/autopilot/stop")
+def autopilot_stop() -> Dict[str, object]:
+    """Stop the autopilot paper-trading loop if it is currently running."""
+    with autopilot_session.lock:
+        if not autopilot_session.running:
+            return {"status": "not_running"}
+        autopilot_session.stop_reason = "manual_stop"
+        autopilot_session.stop_event.set()
+    return {"status": "stopping"}
+
+
 @app.get("/api/fusion360/recent-files")
 def fusion_recent_files() -> List[Dict[str, str]]:
     try:
@@ -1832,10 +1987,24 @@ def self_update_vscode_prompt_endpoint(payload: SelfUpdatePlanRequest) -> Dict[s
     """Build a plain-language prompt for the VS Code Copilot engine option (no auto-apply)."""
     from updater import build_vscode_update_prompt
     result = build_vscode_update_prompt(payload.instruction, payload.target_files)
+    if result.get("status") == "unavailable":
+        raise HTTPException(status_code=409, detail=str(result.get("error", "VS Code launch is unavailable on this instance.")))
     try:
-        webbrowser.open(result["vscode_uri"])
-    except Exception:
-        pass
+        opened = webbrowser.open(result["vscode_uri"])
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Could not open VS Code: {exc}")
+    if not opened:
+        raise HTTPException(status_code=500, detail="Could not open VS Code on this machine - no URI handler responded.")
+    return result
+
+
+@app.post("/api/self-update/push-to-github")
+def self_update_push_endpoint(payload: SelfUpdatePushRequest) -> Dict[str, object]:
+    """Manual review-then-push step: run after reviewing agent edits in VS Code."""
+    from updater import push_reviewed_changes
+    result = push_reviewed_changes(payload.commit_message)
+    if result.get("status") != "ok":
+        raise HTTPException(status_code=400, detail=str(result.get("error", "Push failed")))
     return result
 
 

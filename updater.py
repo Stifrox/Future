@@ -431,6 +431,21 @@ def self_update_execute_latest() -> Dict[str, object]:
 _VSCODE_BRIDGE_CACHE = {"checked_at": 0.0, "installed": False}
 
 
+def _vscode_cli_available() -> bool:
+    """Whether the `code` CLI is on PATH - a prerequisite for launching VS Code on this machine."""
+    import shutil
+
+    return shutil.which("code") is not None
+
+
+def _run_code_cli(args: List[str]) -> subprocess.CompletedProcess:
+    """Run the `code` CLI. On Windows it resolves to code.CMD, which CreateProcess can't
+    launch directly without shell=True (fails silently with WinError 2 otherwise)."""
+    return subprocess.run(
+        ["code", *args], capture_output=True, text=True, timeout=5, shell=(os.name == "nt")
+    )
+
+
 def _vscode_bridge_installed() -> bool:
     """Cached check (60s) for whether the future-self-update-bridge extension is installed."""
     import time
@@ -441,9 +456,7 @@ def _vscode_bridge_installed() -> bool:
 
     installed = False
     try:
-        result = subprocess.run(
-            ["code", "--list-extensions"], capture_output=True, text=True, timeout=5
-        )
+        result = _run_code_cli(["--list-extensions"])
         installed = "future-local.future-self-update-bridge" in (result.stdout or "").lower()
     except Exception:
         installed = False
@@ -451,6 +464,27 @@ def _vscode_bridge_installed() -> bool:
     _VSCODE_BRIDGE_CACHE["checked_at"] = now
     _VSCODE_BRIDGE_CACHE["installed"] = installed
     return installed
+
+
+def vscode_launch_available() -> Dict[str, object]:
+    """Determine whether this machine can actually open VS Code (i.e. this is the desktop
+    instance, not the VM-hosted server). Checked via an explicit override env var first,
+    then by whether the `code` CLI is reachable on PATH."""
+    override = _env("FUTURE_ENABLE_VSCODE_LAUNCH", "auto").strip().lower()
+    if override in {"0", "false", "no", "off"}:
+        return {"available": False, "reason": "VS Code launch is disabled on this instance (FUTURE_ENABLE_VSCODE_LAUNCH=0)."}
+    if override in {"1", "true", "yes", "on"}:
+        return {"available": True, "reason": ""}
+    if not _vscode_cli_available():
+        return {
+            "available": False,
+            "reason": (
+                "This instance can't open VS Code (the `code` CLI isn't on PATH here), which means "
+                "it's most likely running on the VM server, not the Future desktop. Run this "
+                "self-update from the desktop instance instead."
+            ),
+        }
+    return {"available": True, "reason": ""}
 
 
 def build_vscode_update_prompt(instruction: str, target_files: Optional[List[str]] = None) -> Dict[str, object]:
@@ -462,6 +496,10 @@ def build_vscode_update_prompt(instruction: str, target_files: Optional[List[str
     the response so it can be pasted manually."""
     instruction_text = (instruction or "").strip()
     files = [f.strip() for f in (target_files or []) if f.strip()]
+
+    launch_status = vscode_launch_available()
+    if not launch_status["available"]:
+        return {"status": "unavailable", "error": launch_status["reason"], "target_files": files}
 
     prompt_lines = [
         "Future self-update request (reviewed by me before applying):",
@@ -492,4 +530,36 @@ def build_vscode_update_prompt(instruction: str, target_files: Optional[List[str
     path_str = str(target).replace("\\", "/") if os.name == "nt" else str(target)
     vscode_uri = f"vscode://file/{path_str}"
     return {"status": "ok", "prompt": prompt, "vscode_uri": vscode_uri, "target_files": files, "auto_submit": False}
+
+
+def push_reviewed_changes(commit_message: str = "") -> Dict[str, object]:
+    """Manual review-then-push step: stage, commit, and push whatever the user has reviewed."""
+    root = Path.cwd()
+    message = (commit_message or "").strip() or "Future self-update: reviewed changes"
+
+    def run(args: List[str]) -> Dict[str, object]:
+        proc = subprocess.run(args, cwd=root, capture_output=True, text=True, timeout=30)
+        return {"args": args, "code": proc.returncode, "stdout": proc.stdout.strip(), "stderr": proc.stderr.strip()}
+
+    add_result = run(["git", "add", "-A"])
+    if add_result["code"] != 0:
+        return {"status": "error", "error": f"git add failed: {add_result['stderr'] or add_result['stdout']}"}
+
+    status_result = run(["git", "status", "--porcelain"])
+    if not status_result["stdout"]:
+        return {"status": "error", "error": "Nothing to commit - no reviewed changes are staged."}
+
+    commit_result = run(["git", "commit", "-m", message])
+    if commit_result["code"] != 0:
+        return {"status": "error", "error": f"git commit failed: {commit_result['stderr'] or commit_result['stdout']}"}
+
+    push_result = run(["git", "push"])
+    if push_result["code"] != 0:
+        return {
+            "status": "error",
+            "error": f"git push failed: {push_result['stderr'] or push_result['stdout']}",
+            "commit": commit_result["stdout"],
+        }
+
+    return {"status": "ok", "commit": commit_result["stdout"], "push": push_result["stdout"] or push_result["stderr"]}
 
