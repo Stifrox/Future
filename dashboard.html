@@ -1111,6 +1111,32 @@
     min-height:16px;
   }
 
+  .world-overlay{ position:fixed; inset:0; background:var(--bg-panel); display:none; z-index:1200; }
+  .world-overlay.open{ display:flex; }
+  .world-side{ width:310px; flex-shrink:0; display:flex; flex-direction:column; border-right:1px solid var(--border-bright); background:var(--bg-panel); min-height:0; }
+  .world-side-head{ display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border-bottom:1px solid var(--border); font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--text-2); }
+  .world-search{ display:flex; gap:6px; padding:10px 12px 6px; }
+  .world-search input{ flex:1; min-width:0; background:var(--bg-panel-raised); border:1px solid var(--border); color:var(--text-1); border-radius:var(--radius-s); padding:7px 9px; font-size:12px; }
+  .world-layers{ display:grid; grid-template-columns:1fr 1fr; gap:4px 8px; padding:6px 12px 10px; border-bottom:1px solid var(--border); }
+  .world-layers label{ display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-2); cursor:pointer; }
+  .world-layers .cnt{ margin-left:auto; font-size:10px; color:var(--text-3); }
+  .world-status{ padding:6px 12px; font-size:11px; color:var(--text-3); min-height:16px; }
+  .world-list{ flex:1; overflow-y:auto; padding:0 6px 10px; }
+  .world-list-item{ display:flex; gap:8px; align-items:center; padding:7px 8px; border-radius:var(--radius-s); cursor:pointer; font-size:12px; color:var(--text-1); }
+  .world-list-item:hover{ background:var(--bg-panel-raised); }
+  .world-list-item small{ display:block; color:var(--text-3); font-size:10px; }
+  .world-main{ position:relative; flex:1; min-width:0; }
+  #world-map{ position:absolute; inset:0; background:#0c0e10; }
+  .world-base-tiles{ filter:invert(1) hue-rotate(180deg) brightness(.85) contrast(.9); }
+  .world-pin{ font-size:18px; line-height:1; text-shadow:0 0 4px #000; filter:drop-shadow(0 0 2px rgba(0,0,0,.8)); }
+  .world-viewer{ position:absolute; right:14px; bottom:14px; width:420px; max-width:calc(100% - 28px); background:var(--bg-panel); border:1px solid var(--border-bright); border-radius:var(--radius-s); box-shadow:0 12px 40px rgba(0,0,0,.6); display:none; z-index:1000; }
+  .world-viewer.open{ display:block; }
+  .world-viewer img{ display:block; width:100%; background:#080a0d; min-height:120px; object-fit:contain; max-height:300px; }
+  .world-viewer-meta{ padding:8px 10px; font-size:12px; color:var(--text-2); display:flex; flex-direction:column; gap:6px; }
+  .world-viewer-actions{ display:flex; gap:6px; flex-wrap:wrap; }
+  .world-desc{ font-size:12px; color:var(--text-1); line-height:1.4; }
+  @media (max-width:800px){ .world-overlay{ flex-direction:column; } .world-side{ width:100%; height:42%; border-right:0; border-bottom:1px solid var(--border-bright);} .world-main{ flex:1; } }
+
   .vision-overlay{
     position:fixed;
     inset:0;
@@ -1957,6 +1983,10 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 20 3 17V4l6 3m0 13 6-3m-6 3V7m6 10 6 3V7l-6-3m0 13V4m0 3-6-3"/></svg>
           Maps
         </button>
+        <button class="nav-item" data-view="world" id="world-nav-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/></svg>
+          World
+        </button>
         <button class="nav-item" data-view="notes" id="notes-nav-btn">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 12h6M9 16h6M9 8h3"/><path d="M7 3h7l5 5v13a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/></svg>
           Notes
@@ -2483,6 +2513,50 @@
       <button class="btn" id="notes-discard">Discard</button>
       <div class="right">
         <button class="btn primary" id="notes-save-exit">Save Note</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= WORLD VIEW OVERLAY ================= -->
+<div class="world-overlay" id="world-overlay">
+  <aside class="world-side">
+    <div class="world-side-head">
+      <span>World View</span>
+      <button class="icon-btn" id="world-close" style="width:28px;height:28px;" title="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <form class="world-search" id="world-search-form">
+      <input id="world-search" type="text" placeholder="Go to a place (e.g. Minnesota)" autocomplete="off">
+      <button class="btn" type="submit">Go</button>
+    </form>
+    <div class="world-layers" id="world-layers">
+      <label><input type="checkbox" data-layer="cameras" checked> 📷 Cameras <span class="cnt" id="wc-cameras"></span></label>
+      <label><input type="checkbox" data-layer="aircraft"> ✈️ Aircraft <span class="cnt" id="wc-aircraft"></span></label>
+      <label><input type="checkbox" data-layer="quakes"> 🌋 Quakes <span class="cnt" id="wc-quakes"></span></label>
+      <label><input type="checkbox" data-layer="satellites"> 🛰️ Satellites <span class="cnt" id="wc-satellites"></span></label>
+      <label><input type="checkbox" data-layer="launches"> 🚀 Launches <span class="cnt" id="wc-launches"></span></label>
+      <label><input type="checkbox" data-layer="fires"> 🔥 Fires <span class="cnt" id="wc-fires"></span></label>
+      <label><input type="checkbox" data-layer="ships"> 🚢 Ships <span class="cnt" id="wc-ships"></span></label>
+      <label><input type="checkbox" data-layer="traffic"> 🚦 Traffic <span class="cnt" id="wc-traffic"></span></label>
+      <label><input type="checkbox" data-layer="incidents"> ⚠️ Incidents <span class="cnt" id="wc-incidents"></span></label>
+    </div>
+    <div class="world-status" id="world-status"></div>
+    <div class="world-list" id="world-list"></div>
+  </aside>
+  <div class="world-main">
+    <div id="world-map"></div>
+    <div class="world-viewer" id="world-viewer">
+      <img id="world-viewer-img" alt="Camera feed">
+      <div class="world-viewer-meta">
+        <div id="world-viewer-title"></div>
+        <div class="world-viewer-actions">
+          <button class="btn" type="button" id="world-viewer-refresh">Refresh</button>
+          <button class="btn" type="button" id="world-viewer-describe">Ask Future</button>
+          <button class="btn" type="button" id="world-viewer-close">Close</button>
+        </div>
+        <div class="world-desc" id="world-viewer-desc"></div>
       </div>
     </div>
   </div>
@@ -4648,6 +4722,7 @@ async function sendChat(message, opts = {}) {
     const replyText = res.reply || 'Future did not return a response.';
     stopTyping();
     addMessage('Future', replyText);
+    if (res.ui_action && res.ui_action.type === 'world') WorldView.open(res.ui_action);
     refreshRecentChats();
     await speakReplyIfVoiceMode(replyText);
     setServiceLive('chat', true);
@@ -5297,9 +5372,257 @@ document.querySelectorAll('.nav-item').forEach((btn) => {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else if (btn.dataset.view === 'notes') {
       NotesApp.openBrowser();
+    } else if (btn.dataset.view === 'world') {
+      WorldView.open();
     }
   });
 });
+
+const WorldView = {
+  map: null,
+  groups: {},
+  loaded: false,
+  timers: {},
+  satGroup: 'stations',
+  military: false,
+  quakeFeed: '2.5_day',
+  current: null,
+  pins: { cameras: '\u{1F4F7}', aircraft: '\u2708\uFE0F', satellites: '\u{1F6F0}\uFE0F', launches: '\u{1F680}', fires: '\u{1F525}', ships: '\u{1F6A2}', incidents: '\u26A0\uFE0F' },
+  names: ['cameras', 'aircraft', 'quakes', 'satellites', 'launches', 'fires', 'ships', 'traffic', 'incidents'],
+  url(path) { return normalizeApiBase(CONFIG.API_BASE) + path; },
+  status(text) { const el = document.getElementById('world-status'); if (el) el.textContent = text || ''; },
+  count(layer, n) { const el = document.getElementById(`wc-${layer}`); if (el) el.textContent = n == null ? '' : String(n); },
+  enabled(layer) { return !!document.querySelector(`#world-layers input[data-layer="${layer}"]:checked`); },
+  setLayer(layer, on) { const box = document.querySelector(`#world-layers input[data-layer="${layer}"]`); if (box) box.checked = on; },
+  loadLeaflet() {
+    if (window.L) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      const css = document.createElement('link');
+      css.rel = 'stylesheet';
+      css.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+      document.head.appendChild(css);
+      const js = document.createElement('script');
+      js.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+      js.onload = resolve;
+      js.onerror = () => reject(new Error('Map library failed to load'));
+      document.head.appendChild(js);
+    });
+  },
+  async init() {
+    if (this.map) return;
+    await this.loadLeaflet();
+    this.map = L.map('world-map', { worldCopyJump: true, preferCanvas: true }).setView([44.98, -93.27], 7);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, className: 'world-base-tiles', attribution: '&copy; OpenStreetMap contributors' }).addTo(this.map);
+    this.names.forEach((name) => { this.groups[name] = L.layerGroup().addTo(this.map); });
+    this.map.on('dragstart', () => { this.pinnedCameras = false; });
+    this.map.on('moveend', () => { clearTimeout(this.moveTimer); this.moveTimer = setTimeout(() => this.refreshViewLayers(), 450); });
+    document.querySelectorAll('#world-layers input').forEach((box) => box.addEventListener('change', () => this.onToggle(box.dataset.layer)));
+    document.getElementById('world-close').addEventListener('click', () => this.close());
+    document.getElementById('world-viewer-close').addEventListener('click', () => this.closeViewer());
+    document.getElementById('world-viewer-refresh').addEventListener('click', () => this.reloadFrame());
+    document.getElementById('world-viewer-describe').addEventListener('click', () => this.describe());
+    document.getElementById('world-search-form').addEventListener('submit', (e) => { e.preventDefault(); this.goTo(document.getElementById('world-search').value); });
+  },
+  pin(layer, lat, lon, extra = '') {
+    const icon = L.divIcon({ className: '', html: `<div class="world-pin">${extra || this.pins[layer]}</div>`, iconSize: [22, 22], iconAnchor: [11, 11] });
+    return L.marker([lat, lon], { icon });
+  },
+  async open(action) {
+    document.getElementById('world-overlay').classList.add('open');
+    try { await this.init(); } catch (err) { this.status(err.message); return; }
+    setTimeout(() => this.map.invalidateSize(), 50);
+    if (action) this.applyAction(action); else this.refreshAll();
+  },
+  close() { document.getElementById('world-overlay').classList.remove('open'); this.stopTimers(); this.closeViewer(); },
+  stopTimers() { Object.values(this.timers).forEach(clearInterval); this.timers = {}; },
+  applyAction(action) {
+    const layers = action.layers || [];
+    if (action.sat_group) this.satGroup = action.sat_group;
+    if (action.feed) this.quakeFeed = action.feed;
+    this.military = !!action.military;
+    this.names.forEach((name) => this.setLayer(name, layers.includes(name)));
+    if (action.cameras) {
+      this.current = { cameras: action.cameras, label: action.query };
+      this.renderCameras(action.cameras, action.query);
+    }
+    if (action.bbox) this.map.fitBounds([[action.bbox[0], action.bbox[1]], [action.bbox[2], action.bbox[3]]], { maxZoom: 10 });
+    else if (action.center) this.map.setView(action.center, action.zoom || (layers.includes('cameras') ? 10 : 6));
+    else if (action.zoom) this.map.setZoom(action.zoom);
+    layers.forEach((name) => { if (name !== 'cameras' || !action.cameras) this.loadLayer(name); });
+    this.startTimers();
+  },
+  refreshAll() { this.names.forEach((n) => this.onToggle(n, true)); this.startTimers(); },
+  onToggle(layer, quiet) {
+    if (!this.enabled(layer)) { this.groups[layer].clearLayers(); this.count(layer, null); return; }
+    if (!quiet || this.enabled(layer)) this.loadLayer(layer);
+  },
+  refreshViewLayers() {
+    ['cameras', 'aircraft', 'fires', 'ships', 'incidents'].forEach((n) => { if (this.enabled(n) && !(n === 'cameras' && this.pinnedCameras)) this.loadLayer(n); });
+  },
+  startTimers() {
+    this.stopTimers();
+    this.timers.aircraft = setInterval(() => this.enabled('aircraft') && this.loadLayer('aircraft'), 15000);
+    this.timers.satellites = setInterval(() => this.enabled('satellites') && this.loadLayer('satellites'), 10000);
+    this.timers.quakes = setInterval(() => this.enabled('quakes') && this.loadLayer('quakes'), 300000);
+    this.timers.ships = setInterval(() => this.enabled('ships') && this.loadLayer('ships'), 30000);
+  },
+  viewBox() { const b = this.map.getBounds(); return [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()]; },
+  async loadLayer(layer) {
+    try {
+      if (layer === 'cameras') return await this.loadCameras();
+      if (layer === 'aircraft') return await this.loadAircraft();
+      if (layer === 'quakes') return await this.loadQuakes();
+      if (layer === 'satellites') return await this.loadSatellites();
+      if (layer === 'launches') return await this.loadLaunches();
+      if (layer === 'fires') return await this.loadFires();
+      if (layer === 'ships') return await this.loadShips();
+      if (layer === 'traffic') return this.loadTraffic();
+      if (layer === 'incidents') return await this.loadIncidents();
+    } catch (err) { this.status(`${layer}: ${err.message}`); }
+  },
+  async loadCameras() {
+    if (this.map.getZoom() < 6) { this.groups.cameras.clearLayers(); this.count('cameras', null); this.status('Zoom in to see cameras.'); return; }
+    const data = await api(`/api/world/cameras?bbox=${this.viewBox().join(',')}&limit=400`);
+    this.pinnedCameras = false;
+    this.renderCameras(data.cameras, null, data.count);
+  },
+  renderCameras(cameras, label, total) {
+    this.pinnedCameras = !!label;
+    const group = this.groups.cameras;
+    group.clearLayers();
+    cameras.forEach((cam) => {
+      this.pin('cameras', cam.lat, cam.lon).on('click', () => this.viewCamera(cam)).bindTooltip(cam.name).addTo(group);
+    });
+    this.count('cameras', total || cameras.length);
+    const list = document.getElementById('world-list');
+    list.innerHTML = cameras.slice(0, 80).map((cam, i) =>
+      `<div class="world-list-item" data-i="${i}"><span>\u{1F4F7}</span><div>${escapeHtml(cam.name)}<small>${escapeHtml(cam.provider)}${cam.distance_km != null ? ` \u00B7 ${cam.distance_km} km` : ''}</small></div></div>`).join('');
+    list.querySelectorAll('.world-list-item').forEach((el) => el.addEventListener('click', () => {
+      const cam = cameras[Number(el.dataset.i)];
+      this.map.setView([cam.lat, cam.lon], Math.max(this.map.getZoom(), 12));
+      this.viewCamera(cam);
+    }));
+    this.status(label ? `${total || cameras.length} cameras near ${label}. Tap one to view.` : `${cameras.length} cameras in view.`);
+  },
+  async loadAircraft() {
+    const c = this.map.getCenter();
+    const data = await api(`/api/world/aircraft?lat=${c.lat.toFixed(3)}&lon=${c.lng.toFixed(3)}&radius_nm=250${this.military ? '&military=true' : ''}`);
+    const group = this.groups.aircraft; group.clearLayers();
+    data.aircraft.forEach((a) => {
+      const rot = Math.round((a.heading || 0) - 90);
+      const icon = `<span style="display:inline-block;transform:rotate(${rot}deg);${a.military ? 'filter:hue-rotate(160deg)' : ''}">\u2708\uFE0F</span>`;
+      this.pin('aircraft', a.lat, a.lon, icon)
+        .bindPopup(`<b>${escapeHtml(a.callsign || a.id)}</b><br>${escapeHtml(a.type || '')} ${escapeHtml(a.reg || '')}<br>${Math.round(a.alt_ft || 0).toLocaleString()} ft \u00B7 ${a.speed_kt != null ? Math.round(a.speed_kt) : '?'} kt${a.military ? '<br>Military' : ''}`)
+        .addTo(group);
+    });
+    this.count('aircraft', data.count);
+    if (data.error) this.status(`aircraft: ${data.error}`);
+  },
+  async loadQuakes() {
+    const data = await api(`/api/world/quakes?feed=${this.quakeFeed}`);
+    const group = this.groups.quakes; group.clearLayers();
+    data.quakes.forEach((q) => {
+      const size = Math.max(10, Math.round(q.mag * 5));
+      const color = q.mag >= 6 ? '#ff3b30' : q.mag >= 4.5 ? '#ff9f0a' : '#ffd60a';
+      L.circleMarker([q.lat, q.lon], { radius: size, color, weight: 1, fillColor: color, fillOpacity: 0.35 })
+        .bindPopup(`<b>M${q.mag}</b> ${escapeHtml(q.place)}<br>${escapeHtml(q.time)} UTC<br>Depth ${q.depth_km} km${q.tsunami ? '<br>Tsunami flag' : ''}<br><a href="${escapeHtml(q.url)}" target="_blank" rel="noopener">USGS</a>`)
+        .addTo(group);
+    });
+    this.count('quakes', data.count);
+  },
+  async loadSatellites() {
+    const data = await api(`/api/world/satellites?group=${this.satGroup}&limit=300`);
+    const group = this.groups.satellites; group.clearLayers();
+    data.satellites.forEach((s) => {
+      this.pin('satellites', s.lat, s.lon).bindPopup(`<b>${escapeHtml(s.name)}</b><br>${s.alt_km} km \u00B7 ${s.speed_kms} km/s`).addTo(group);
+    });
+    this.count('satellites', data.count);
+    if (data.error) this.status(`satellites: ${data.error}`);
+  },
+  async loadLaunches() {
+    const data = await api('/api/world/launches');
+    const group = this.groups.launches; group.clearLayers();
+    data.launches.filter((l) => l.lat != null).forEach((l) => {
+      this.pin('launches', l.lat, l.lon).bindPopup(`<b>${escapeHtml(l.name)}</b><br>${escapeHtml(l.net.replace('T', ' ').slice(0, 16))} UTC<br>${escapeHtml(l.location)}<br>${escapeHtml(l.status)}`).addTo(group);
+    });
+    this.count('launches', data.count);
+  },
+  async loadFires() {
+    if (this.map.getZoom() < 4) { this.status('Zoom in to see fires.'); return; }
+    const data = await api(`/api/world/fires?bbox=${this.viewBox().join(',')}`);
+    const group = this.groups.fires; group.clearLayers();
+    if (data.error) { this.status(`fires: ${data.error}`); return; }
+    data.fires.forEach((f) => {
+      this.pin('fires', f.lat, f.lon).bindPopup(`Fire detection<br>${escapeHtml(f.date)} \u00B7 FRP ${f.frp ?? '?'}`).addTo(group);
+    });
+    this.count('fires', data.count);
+  },
+  async loadShips() {
+    if (this.map.getZoom() < 5) { this.groups.ships.clearLayers(); this.status('Zoom in to see ships.'); return; }
+    const data = await api(`/api/world/ships?bbox=${this.viewBox().join(',')}`);
+    const group = this.groups.ships; group.clearLayers();
+    if (data.error) { this.status(`ships: ${data.error}`); return; }
+    data.ships.forEach((s) => {
+      const rot = Math.round((s.heading || 0) - 90);
+      const icon = `<span style="display:inline-block;transform:rotate(${rot}deg)">\u{1F6A2}</span>`;
+      this.pin('ships', s.lat, s.lon, icon).bindPopup(`<b>${escapeHtml(s.name)}</b><br>MMSI ${escapeHtml(s.id)}<br>${s.speed_kt != null ? s.speed_kt + ' kt' : ''}`).addTo(group);
+    });
+    this.count('ships', data.count);
+  },
+  loadTraffic() {
+    const group = this.groups.traffic;
+    if (group.getLayers().length) return;
+    group.addLayer(L.tileLayer(this.url('/api/world/traffic/tile/{z}/{x}/{y}.png'), { maxZoom: 18, opacity: 0.85 }));
+    this.count('traffic', 'on');
+  },
+  async loadIncidents() {
+    const group = this.groups.incidents;
+    if (this.map.getZoom() < 9) { group.clearLayers(); this.status('Zoom in to see traffic incidents.'); return; }
+    const data = await api(`/api/world/traffic/incidents?bbox=${this.viewBox().join(',')}`);
+    group.clearLayers();
+    if (data.error) { this.status(`incidents: ${data.error}`); return; }
+    data.incidents.forEach((i) => {
+      this.pin('incidents', i.lat, i.lon).bindPopup(`<b>${escapeHtml(i.type)}</b> ${escapeHtml(i.road)}<br>${escapeHtml(i.description)}<br>${escapeHtml(i.from)}${i.to ? ' \u2192 ' + escapeHtml(i.to) : ''}${i.delay_s ? `<br>Delay ${Math.round(i.delay_s / 60)} min` : ''}`).addTo(group);
+    });
+    this.count('incidents', data.count);
+  },
+  async goTo(query) {
+    const q = String(query || '').trim();
+    if (!q) return;
+    this.status('Searching...');
+    try {
+      const data = await api(`/api/world/cameras?q=${encodeURIComponent(q)}&limit=200`);
+      if (!data.center) { this.status('Place not found.'); return; }
+      this.setLayer('cameras', true);
+      this.renderCameras(data.cameras, data.query.split(',')[0], data.count);
+      if (data.bbox) this.map.fitBounds([[data.bbox[0], data.bbox[1]], [data.bbox[2], data.bbox[3]]], { maxZoom: 10 });
+      else this.map.setView(data.center, 10);
+    } catch (err) { this.status(err.message); }
+  },
+  viewCamera(cam) {
+    this.camera = cam;
+    document.getElementById('world-viewer').classList.add('open');
+    document.getElementById('world-viewer-title').textContent = `${cam.name} \u00B7 ${cam.provider}`;
+    document.getElementById('world-viewer-desc').textContent = '';
+    this.reloadFrame();
+    clearInterval(this.frameTimer);
+    this.frameTimer = setInterval(() => this.reloadFrame(), 10000);
+  },
+  reloadFrame() {
+    if (!this.camera) return;
+    document.getElementById('world-viewer-img').src = this.url(`/api/world/camera/frame?id=${encodeURIComponent(this.camera.id)}&t=${Date.now()}`);
+  },
+  closeViewer() { document.getElementById('world-viewer').classList.remove('open'); clearInterval(this.frameTimer); this.camera = null; },
+  async describe() {
+    if (!this.camera) return;
+    const out = document.getElementById('world-viewer-desc');
+    out.textContent = 'Looking...';
+    try {
+      const data = await api(`/api/world/camera/describe?id=${encodeURIComponent(this.camera.id)}`);
+      out.textContent = data.description;
+    } catch (err) { out.textContent = 'Could not analyze this camera.'; }
+  },
+};
 
 function escapeHtml(str) {
   return String(str || '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -5677,6 +6000,14 @@ function createCompactItem(title, contentNode, tagId, openByDefault = false) {
   return item;
 }
 
+function buildWorldPanel() {
+  const panel = document.createElement('div');
+  panel.className = 'panel';
+  panel.innerHTML = '<div class="panel-body"><div style="font-size:12px;color:var(--text-2);margin-bottom:10px;">Live cameras, aircraft, ships, satellites, quakes, traffic, fires and launches.</div><button class="btn" type="button" id="world-open-btn">Open World Map</button></div>';
+  panel.querySelector('#world-open-btn').addEventListener('click', () => WorldView.open());
+  return panel;
+}
+
 function initCompactDropdownLayout() {
   if (document.getElementById('compact-accordions')) return;
   const center = document.querySelector('.col-center');
@@ -5690,6 +6021,7 @@ function initCompactDropdownLayout() {
   container.className = 'compact-accordions';
 
   const modules = [
+    { title: 'World', node: buildWorldPanel(), tagId: 'world-tag', view: 'world', open: true },
     { title: 'Spotify', node: panelFromTag('spotify-tag'), tagId: 'spotify-tag', view: 'spotify', open: true },
     { title: 'Calendar', node: panelFromTag('calendar-tag'), tagId: 'calendar-tag', view: 'calendar', open: false },
     { title: 'Gmail', node: panelFromTag('gmail-tag'), tagId: 'gmail-tag', view: 'gmail', open: false },

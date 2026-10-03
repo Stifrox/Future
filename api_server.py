@@ -61,6 +61,7 @@ from tools.integrations import (
 )
 from chat_sessions import ChatSessionStore
 from tools import tasks as background_tasks
+from tools import worldview
 
 try:
     import psutil
@@ -1897,6 +1898,119 @@ def maps_location() -> Dict[str, object]:
     }
 
 
+def _parse_bbox(value: Optional[str]):
+    if not value:
+        return None
+    try:
+        s, w, n, e = [float(x) for x in value.split(",")]
+    except ValueError:
+        raise HTTPException(status_code=400, detail="bbox must be south,west,north,east")
+    return (s, w, n, e)
+
+
+@app.get("/api/world/status")
+def world_status() -> Dict[str, object]:
+    return worldview.get_status()
+
+
+@app.get("/api/world/cameras")
+def world_cameras(
+    q: Optional[str] = None,
+    lat: Optional[float] = None,
+    lon: Optional[float] = None,
+    radius_km: float = Query(default=75, ge=1, le=2000),
+    bbox: Optional[str] = None,
+    text: Optional[str] = None,
+    limit: int = Query(default=60, ge=1, le=600),
+) -> Dict[str, object]:
+    return worldview.search_cameras(place=q, lat=lat, lon=lon, radius_km=radius_km, bbox=_parse_bbox(bbox), limit=limit, text=text)
+
+
+@app.get("/api/world/camera/frame")
+def world_camera_frame(id: str) -> Response:
+    try:
+        body, ctype = worldview.fetch_camera_frame(id)
+    except LookupError:
+        raise HTTPException(status_code=404, detail="Camera not found")
+    except Exception:
+        raise HTTPException(status_code=502, detail="Camera feed unavailable")
+    return Response(content=body, media_type=ctype, headers={"Cache-Control": "no-store"})
+
+
+@app.get("/api/world/camera/describe")
+def world_camera_describe(id: str, question: str = "") -> Dict[str, object]:
+    try:
+        return {"id": id, "description": worldview.describe_camera(id, question)}
+    except Exception:
+        raise HTTPException(status_code=502, detail="Camera feed unavailable")
+
+
+@app.get("/api/world/aircraft")
+def world_aircraft(
+    lat: float = Query(ge=-90, le=90),
+    lon: float = Query(ge=-180, le=180),
+    radius_nm: float = Query(default=150, ge=5, le=250),
+    military: bool = False,
+) -> Dict[str, object]:
+    return worldview.get_aircraft(lat, lon, radius_nm, military)
+
+
+@app.get("/api/world/quakes")
+def world_quakes(feed: str = "2.5_day", min_mag: float = 0) -> Dict[str, object]:
+    return worldview.get_quakes(feed, min_mag)
+
+
+@app.get("/api/world/satellites")
+def world_satellites(group: str = "stations", name: str = "", limit: int = Query(default=300, ge=1, le=1500)) -> Dict[str, object]:
+    return worldview.get_satellites(group, name, limit)
+
+
+@app.get("/api/world/launches")
+def world_launches() -> Dict[str, object]:
+    return worldview.get_launches()
+
+
+@app.get("/api/world/fires")
+def world_fires(bbox: Optional[str] = None) -> Dict[str, object]:
+    return worldview.get_fires(_parse_bbox(bbox))
+
+
+@app.get("/api/world/ships")
+def world_ships(bbox: str) -> Dict[str, object]:
+    return worldview.get_ships(_parse_bbox(bbox))
+
+
+@app.get("/api/world/traffic/tile/{z}/{x}/{y}.png")
+def world_traffic_tile(z: int, x: int, y: int) -> Response:
+    try:
+        body = worldview.traffic_tile(z, x, y)
+    except LookupError:
+        raise HTTPException(status_code=503, detail="Traffic key not configured")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Bad tile coordinates")
+    except Exception:
+        raise HTTPException(status_code=502, detail="Traffic tile unavailable")
+    return Response(content=body, media_type="image/png", headers={"Cache-Control": "public, max-age=120"})
+
+
+@app.get("/api/world/traffic/incidents")
+def world_traffic_incidents(bbox: str) -> Dict[str, object]:
+    return worldview.get_traffic_incidents(_parse_bbox(bbox))
+
+
+@app.get("/api/world/traffic/flow")
+def world_traffic_flow(lat: float = Query(ge=-90, le=90), lon: float = Query(ge=-180, le=180)) -> Dict[str, object]:
+    return worldview.get_traffic_flow(lat, lon)
+
+
+@app.get("/api/world/geocode")
+def world_geocode(q: str) -> Dict[str, object]:
+    result = worldview.geocode(q)
+    if not result:
+        raise HTTPException(status_code=404, detail="Place not found")
+    return result
+
+
 @app.post("/api/chat/message")
 def chat_message(payload: ChatMessageRequest) -> Dict[str, object]:
     message = payload.message.strip()
@@ -1910,7 +2024,15 @@ def chat_message(payload: ChatMessageRequest) -> Dict[str, object]:
         if not session:
             session = CHAT_SESSIONS.create()
         recent_context = session["messages"][-CHAT_CONTEXT_MAX_LINES:] or list(CHAT_CONTEXT_LINES)
-        reply = _chat_reply(message, recent_context=recent_context, client_time=payload.client_time)
+        world = None
+        try:
+            world = worldview.handle_chat(message)
+        except Exception:
+            world = None
+        if world:
+            reply = world["reply"]
+        else:
+            reply = _chat_reply(message, recent_context=recent_context, client_time=payload.client_time)
         normalized = _normalize_chat_reply(reply)
         session = CHAT_SESSIONS.add_messages(
             session["id"], [{"role": "user", "content": message}, {"role": "assistant", "content": normalized}]
@@ -1918,7 +2040,10 @@ def chat_message(payload: ChatMessageRequest) -> Dict[str, object]:
         CHAT_SESSIONS.prune()
         CHAT_CONTEXT_LINES.append({"role": "user", "content": message})
         CHAT_CONTEXT_LINES.append({"role": "assistant", "content": normalized})
-        return {"reply": normalized, "session_id": session["id"], "title": session["title"]}
+        result = {"reply": normalized, "session_id": session["id"], "title": session["title"]}
+        if world and world.get("action"):
+            result["ui_action"] = world["action"]
+        return result
     except HTTPException:
         raise
     except Exception:

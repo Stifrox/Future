@@ -54,7 +54,9 @@ def generate_vscode_copilot_prompt(update_plan: dict) -> str:
     prompt = f"""
 You are an autonomous code update agent integrated with VS Code. Execute the following update plan:
 
+
 UPDATE PLAN:
+
 {json.dumps(update_plan, indent=2)}
 
 INSTRUCTIONS:
@@ -63,6 +65,7 @@ INSTRUCTIONS:
 3. Save all modified files
 4. Execute the test_plan commands to verify the changes
 5. Report completion status and any errors encountered
+
     """
     return prompt
 
@@ -1711,6 +1714,14 @@ def handle_query(query: str, recent_context=None, client_time: Optional[str] = N
     local_reply = _handle_local_intents(query)
     if local_reply:
         return local_reply
+
+    try:
+        from tools.worldview import handle_chat as _world_chat
+        world = _world_chat(query)
+        if world:
+            return world["reply"]
+    except Exception as exc:
+        print(f"World view intent failed: {exc}")
 
     memory_reply = _handle_memory_intents(query)
     if memory_reply:

@@ -1,0 +1,255 @@
+[
+ {
+  "id": "us-ca-d1",
+  "country": "US",
+  "countryName": "United States (California D1)",
+  "provider": "Caltrans",
+  "catalogUrl": "https://cwwp2.dot.ca.gov/data/d1/cctv/cctvStatusD01.json",
+  "method": "GET",
+  "arrayPath": "data",
+  "fields": {
+   "id": "cctv.index",
+   "name": "cctv.location.locationName",
+   "lat": "cctv.location.latitude",
+   "lon": "cctv.location.longitude",
+   "heading": "cctv.location.direction",
+   "imageUrl": "cctv.imageData.static.currentImageURL"
+  },
+  "license": "Public Caltrans traffic camera data"
+ },
+ {
+  "id": "us-ca-d2",
+  "country": "US",
+  "countryName": "United States (California D2)",
+  "provider": "Caltrans",
+  "catalogUrl": "https://cwwp2.dot.ca.gov/data/d2/cctv/cctvStatusD02.json",
+  "method": "GET",
+  "arrayPath": "data",
+  "fields": {
+   "id": "cctv.index",
+   "name": "cctv.location.locationName",
+   "lat": "cctv.location.latitude",
+   "lon": "cctv.location.longitude",
+   "heading": "cctv.location.direction",
+   "imageUrl": "cctv.imageData.static.currentImageURL"
+  },
+  "license": "Public Caltrans traffic camera data"
+ },
+ {
+  "id": "us-ca-d3",
+  "country": "US",
+  "countryName": "United States (California D3)",
+  "provider": "Caltrans",
+  "catalogUrl": "https://cwwp2.dot.ca.gov/data/d3/cctv/cctvStatusD03.json",
+  "method": "GET",
+  "arrayPath": "data",
+  "fields": {
+   "id": "cctv.index",
+   "name": "cctv.location.locationName",
+   "lat": "cctv.location.latitude",
+   "lon": "cctv.location.longitude",
+   "heading": "cctv.location.direction",
+   "imageUrl": "cctv.imageData.static.currentImageURL"
+  },
+  "license": "Public Caltrans traffic camera data"
+ },
+ {
+  "id": "us-ca-d4",
+  "country": "US",
+  "countryName": "United States (California D4)",
+  "provider": "Caltrans",
+  "catalogUrl": "https://cwwp2.dot.ca.gov/data/d4/cctv/cctvStatusD04.json",
+  "method": "GET",
+  "arrayPath": "data",
+  "fields": {
+   "id": "cctv.index",
+   "name": "cctv.location.locationName",
+   "lat": "cctv.location.latitude",
+   "lon": "cctv.location.longitude",
+   "heading": "cctv.location.direction",
+   "imageUrl": "cctv.imageData.static.currentImageURL"
+  },
+  "license": "Public Caltrans traffic camera data"
+ },
+ {
+  "id": "us-ca-d5",
+  "country": "US",
+  "countryName": "United States (California D5)",
+  "provider": "Caltrans",
+  "catalogUrl": "https://cwwp2.dot.ca.gov/data/d5/cctv/cctvStatusD05.json",
+  "method": "GET",
+  "arrayPath": "data",
+  "fields": {
+   "id": "cctv.index",
+   "name": "cctv.location.locationName",
+   "lat": "cctv.location.latitude",
+   "lon": "cctv.location.longitude",
+   "heading": "cctv.location.direction",
+   "imageUrl": "cctv.imageData.static.currentImageURL"
+  },
+  "license": "Public Caltrans traffic camera data"
+ },
+ {
+  "id": "us-ca-d6",
+  "country": "US",
+  "countryName": "United States (California D6)",
+  "provider": "Caltrans",
+  "catalogUrl": "https://cwwp2.dot.ca.gov/data/d6/cctv/cctvStatusD06.json",
+  "method": "GET",
+  "arrayPath": "data",
+  "fields": {
+   "id": "cctv.index",
+   "name": "cctv.location.locationName",
+   "lat": "cctv.location.latitude",
+   "lon": "cctv.location.longitude",
+   "heading": "cctv.location.direction",
+   "imageUrl": "cctv.imageData.static.currentImageURL"
+  },
+  "license": "Public Caltrans traffic camera data"
+ },
+ {
+  "id": "us-ca-d7",
+  "country": "US",
+  "countryName": "United States (California D7)",
+  "provider": "Caltrans",
+  "catalogUrl": "https://cwwp2.dot.ca.gov/data/d7/cctv/cctvStatusD07.json",
+  "method": "GET",
+  "arrayPath": "data",
+  "fields": {
+   "id": "cctv.index",
+   "name": "cctv.location.locationName",
+   "lat": "cctv.location.latitude",
+   "lon": "cctv.location.longitude",
+   "heading": "cctv.location.direction",
+   "imageUrl": "cctv.imageData.static.currentImageURL"
+  },
+  "license": "Public Caltrans traffic camera data"
+ },
+ {
+  "id": "us-ca-d8",
+  "country": "US",
+  "countryName": "United States (California D8)",
+  "provider": "Caltrans",
+  "catalogUrl": "https://cwwp2.dot.ca.gov/data/d8/cctv/cctvStatusD08.json",
+  "method": "GET",
+  "arrayPath": "data",
+  "fields": {
+   "id": "cctv.index",
+   "name": "cctv.location.locationName",
+   "lat": "cctv.location.latitude",
+   "lon": "cctv.location.longitude",
+   "heading": "cctv.location.direction",
+   "imageUrl": "cctv.imageData.static.currentImageURL"
+  },
+  "license": "Public Caltrans traffic camera data"
+ },
+ {
+  "id": "us-ca-d9",
+  "country": "US",
+  "countryName": "United States (California D9)",
+  "provider": "Caltrans",
+  "catalogUrl": "https://cwwp2.dot.ca.gov/data/d9/cctv/cctvStatusD09.json",
+  "method": "GET",
+  "arrayPath": "data",
+  "fields": {
+   "id": "cctv.index",
+   "name": "cctv.location.locationName",
+   "lat": "cctv.location.latitude",
+   "lon": "cctv.location.longitude",
+   "heading": "cctv.location.direction",
+   "imageUrl": "cctv.imageData.static.currentImageURL"
+  },
+  "license": "Public Caltrans traffic camera data"
+ },
+ {
+  "id": "us-ca-d10",
+  "country": "US",
+  "countryName": "United States (California D10)",
+  "provider": "Caltrans",
+  "catalogUrl": "https://cwwp2.dot.ca.gov/data/d10/cctv/cctvStatusD10.json",
+  "method": "GET",
+  "arrayPath": "data",
+  "fields": {
+   "id": "cctv.index",
+   "name": "cctv.location.locationName",
+   "lat": "cctv.location.latitude",
+   "lon": "cctv.location.longitude",
+   "heading": "cctv.location.direction",
+   "imageUrl": "cctv.imageData.static.currentImageURL"
+  },
+  "license": "Public Caltrans traffic camera data"
+ },
+ {
+  "id": "us-ca-d11",
+  "country": "US",
+  "countryName": "United States (California D11)",
+  "provider": "Caltrans",
+  "catalogUrl": "https://cwwp2.dot.ca.gov/data/d11/cctv/cctvStatusD11.json",
+  "method": "GET",
+  "arrayPath": "data",
+  "fields": {
+   "id": "cctv.index",
+   "name": "cctv.location.locationName",
+   "lat": "cctv.location.latitude",
+   "lon": "cctv.location.longitude",
+   "heading": "cctv.location.direction",
+   "imageUrl": "cctv.imageData.static.currentImageURL"
+  },
+  "license": "Public Caltrans traffic camera data"
+ },
+ {
+  "id": "us-ca-d12",
+  "country": "US",
+  "countryName": "United States (California D12)",
+  "provider": "Caltrans",
+  "catalogUrl": "https://cwwp2.dot.ca.gov/data/d12/cctv/cctvStatusD12.json",
+  "method": "GET",
+  "arrayPath": "data",
+  "fields": {
+   "id": "cctv.index",
+   "name": "cctv.location.locationName",
+   "lat": "cctv.location.latitude",
+   "lon": "cctv.location.longitude",
+   "heading": "cctv.location.direction",
+   "imageUrl": "cctv.imageData.static.currentImageURL"
+  },
+  "license": "Public Caltrans traffic camera data"
+ },
+ {
+  "id": "gb-tfl",
+  "country": "GB",
+  "countryName": "United Kingdom (London)",
+  "provider": "TfL JamCams",
+  "catalogUrl": "https://api.tfl.gov.uk/Place/Type/JamCam",
+  "method": "GET",
+  "arrayPath": "",
+  "fields": {
+   "id": "id",
+   "name": "commonName",
+   "lat": "lat",
+   "lon": "lon",
+   "imageUrl": null
+  },
+  "idStripPrefix": "JamCams_",
+  "imageUrlTemplate": "https://s3-eu-west-1.amazonaws.com/jamcams.tfl.gov.uk/{id}.jpg",
+  "license": "Powered by TfL Open Data"
+ },
+ {
+  "id": "us-mn-metro",
+  "country": "US",
+  "countryName": "United States (Minnesota Twin Cities)",
+  "provider": "MnDOT Regional Transportation Management Center",
+  "catalogUrl": "https://gis2.co.dakota.mn.us/arcgis/rest/services/DCGIS_OL_Transportation/MapServer/12/query?where=1%3D1&outFields=*&f=json&outSR=4326&returnGeometry=true",
+  "method": "GET",
+  "arrayPath": "features",
+  "fields": {
+   "id": "attributes.CAMERAID",
+   "name": "attributes.CAMERAID",
+   "lat": "geometry.y",
+   "lon": "geometry.x",
+   "imageUrl": null
+  },
+  "imageUrlTemplate": "https://video.dot.state.mn.us/video/image/metro/{id}",
+  "license": "MnDOT public traffic cameras"
+ }
+]

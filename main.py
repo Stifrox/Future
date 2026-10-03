@@ -739,6 +739,17 @@ def build_autopilot_email_report(
 def route_command(command, personality, memory):
     command_lower = command.lower()
 
+    try:
+        from tools.worldview import handle_chat as _world_chat
+        world = _world_chat(command)
+        if world:
+            print("Future:", world["reply"])
+            speak(world["reply"])
+            remember(memory, command, world["reply"])
+            return world["reply"]
+    except Exception as exc:
+        print(f"World view intent failed: {exc}")
+
     if has_pending_calendar_draft() and should_handle_calendar_followup(command):
         reply = handle_calendar_command(command)
         print("Future:", reply)

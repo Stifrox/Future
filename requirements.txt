@@ -13,3 +13,6 @@ anycubic-cloud-api
 paho-mqtt
 aiohttp
 cryptography
+
+sgp4
+websockets
