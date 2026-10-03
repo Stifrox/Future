@@ -396,3 +396,35 @@ def test_resolve_fusion_executable_discovers_webdeploy_binary(monkeypatch, tmp_p
 
     assert resolved is not None
     assert resolved.lower().endswith("fusion360.exe")
+
+def test_camera_intent_ignores_conversation_about_camera_projects():
+    for text in [
+        "nah that was last night prints turned out alright i got ur world view camera hooked up so im super hype",
+        "i'm building a camera rig for my drone",
+        "how do i wire a camera module to the pi zero",
+        "pull up my gmail",
+    ]:
+        assert not webtools._looks_like_camera_intent(text.lower()), text
+
+
+def test_camera_intent_matches_short_view_requests():
+    for text in ["show me the camera", "pull up the garage camera", "check the camera", "show the raspberry pi stream"]:
+        assert webtools._looks_like_camera_intent(text.lower()), text
+    assert not webtools._looks_like_camera_intent("pull up cameras around minnesota")
+
+
+def test_camera_chat_without_devices_falls_through(monkeypatch):
+    monkeypatch.setattr(webtools, "match_device_command", lambda q: None)
+    monkeypatch.setattr(webtools, "match_camera_device", lambda q: None)
+    assert webtools._handle_device_command("my camera project is going great") is None
+    assert "Raspberry Pi" in webtools._handle_device_command("show me the raspberry pi camera")
+
+
+def test_printer_intent_ignores_casual_talk_about_prints():
+    assert not webtools._looks_like_printer_intent("nah that was last night prints turned out alright lol")
+    assert not webtools._looks_like_printer_intent("my layer of paint came out great")
+
+
+def test_printer_intent_still_matches_status_questions():
+    for text in ["is anything printing", "how are my prints doing", "check the printer", "what layer is the print on"]:
+        assert webtools._looks_like_printer_intent(text), text

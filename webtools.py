@@ -476,8 +476,12 @@ def _looks_like_spotify_intent(query_lower: str) -> bool:
     return False
 
 
+_PRINTER_WORD_RE = re.compile(r"\b(?:printer|pritner|slicer|anycubic|kobra|nozzle)\b")
+_PRINT_STATUS_CUE_RE = re.compile(r"^(?:hey |ok |okay )?(?:future[, ]+)?(?:is|are|how|what|whats|check|any|anything|did|show|status|tell me)\b")
+
+
 def _looks_like_printer_intent(query_lower: str) -> bool:
-    if any(k in query_lower for k in ["print", "printer", "pritner", "slicer", "anycubic", "kobra", "nozzle", "layer"]):
+    if _PRINTER_WORD_RE.search(query_lower):
         return True
 
     natural_phrases = [
@@ -487,7 +491,12 @@ def _looks_like_printer_intent(query_lower: str) -> bool:
         "3d printer",
         "how is the print",
     ]
-    return any(phrase in query_lower for phrase in natural_phrases)
+    if any(phrase in query_lower for phrase in natural_phrases):
+        return True
+
+    # Bare "print(s)/layer" only counts as a status question, not casual chat about past prints.
+    text = query_lower.strip()
+    return bool(re.search(r"\b(?:print|prints|printing|layer|layers)\b", text)) and len(text.split()) <= 14 and bool(_PRINT_STATUS_CUE_RE.search(text))
 
 
 def _looks_like_fusion_intent(query_lower: str) -> bool:
@@ -1122,13 +1131,20 @@ def _start_content_creation_reply(query: str) -> str:
     )
 
 
-_CAMERA_INTENT_PHRASES = [
-    "camera", "stream", "video feed", "pull up", "see what", "watch the", "check the camera", "look at the camera",
-]
+_CAMERA_VIEW_RE = re.compile(
+    r"^(?:hey |ok |okay )?(?:future[, ]+)?(?:can you |could you |please )*(?:show|pull up|open|bring up|check|watch|look at|see|stream)\b[^?]*\b(?:cameras?|cams?|video feed|stream)\b",
+    re.I,
+)
+_CAMERA_PLACE_RE = re.compile(r"\b(?:around|near|across|within|worldwide|all over)\b", re.I)
+_CAMERA_DEVICE_RE = re.compile(r"\b(?:raspberry|pi cam|picam|esp32|wifi device)", re.I)
 
 
 def _looks_like_camera_intent(query_lower: str) -> bool:
-    return any(phrase in query_lower for phrase in _CAMERA_INTENT_PHRASES)
+    """Short 'show me the camera' requests only; chatting about camera projects must not match."""
+    text = query_lower.strip()
+    if len(text.split()) > 12 or _CAMERA_PLACE_RE.search(text):
+        return False
+    return bool(_CAMERA_VIEW_RE.search(text)) or bool(_CAMERA_DEVICE_RE.search(text))
 
 
 def _handle_device_command(query: str) -> Optional[str]:
@@ -1146,7 +1162,9 @@ def _handle_device_command(query: str) -> Optional[str]:
     if _looks_like_camera_intent(query_lower):
         device = match_camera_device(query)
         if not device:
-            return "I don't have any Raspberry Pi cameras connected yet \u2014 add one in Settings > WiFi devices."
+            if _CAMERA_DEVICE_RE.search(query_lower):
+                return "I don't have any Raspberry Pi cameras connected yet \u2014 add one in Settings > WiFi devices."
+            return None
         url = camera_stream_url(device)
         label = device.get("description") or "no description set"
         return f"Here's the {device['name']} stream ({label}): {url}"
