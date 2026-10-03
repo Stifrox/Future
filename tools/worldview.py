@@ -206,7 +206,11 @@ def _build_camera(cat: Dict[str, Any], row: Any) -> Optional[Dict[str, Any]]:
         return None
     name = _dig(row, f.get("name")) if f.get("name") else None
     heading = _dig(row, f.get("heading")) if f.get("heading") else None
-    return {
+    stream = _dig(row, cat.get("streamUrl")) if cat.get("streamUrl") else None
+    if not stream and cat.get("streamUrlTemplate"):
+        stream = cat["streamUrlTemplate"].replace("{id}", raw_id)
+    video = cat["videoUrlTemplate"].replace("{id}", raw_id) if cat.get("videoUrlTemplate") else None
+    cam = {
         "id": f"{cat['id']}:{raw_id}",
         "name": re.sub(r"\s+", " ", str(name or raw_id)).strip()[:120],
         "lat": round(lat, 5),
@@ -217,11 +221,16 @@ def _build_camera(cat: Dict[str, Any], row: Any) -> Optional[Dict[str, Any]]:
         "region": cat.get("countryName", ""),
         "url": url,
     }
+    if stream and str(stream).lower().startswith("https://"):
+        cam["stream"] = str(stream)
+    if video and video.lower().startswith("https://"):
+        cam["video"] = video
+    return cam
 
 
 def _load_catalog(cat: Dict[str, Any]) -> List[Dict[str, Any]]:
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    cache_file = CACHE_DIR / f"cameras_{cat['id']}.json"
+    cache_file = CACHE_DIR / f"cameras2_{cat['id']}.json"
     try:
         if time.time() - cache_file.stat().st_mtime < CAMERA_TTL:
             return json.loads(cache_file.read_text(encoding="utf-8"))
@@ -282,6 +291,9 @@ def get_camera(cam_id: str) -> Optional[Dict[str, Any]]:
 
 def _public_camera(cam: Dict[str, Any], dist: Optional[float] = None) -> Dict[str, Any]:
     out = {k: cam[k] for k in ("id", "name", "lat", "lon", "heading", "provider", "region")}
+    for key in ("stream", "video"):
+        if cam.get(key):
+            out[key] = cam[key]
     if dist is not None:
         out["distance_km"] = round(dist, 1)
     return out
@@ -339,11 +351,7 @@ def search_cameras(
     }
 
 
-def fetch_camera_frame(cam_id: str) -> Tuple[bytes, str]:
-    """Fetch the current still for a catalogued camera. Only catalogued URLs are ever requested."""
-    cam = get_camera(cam_id)
-    if not cam:
-        raise LookupError("camera not found")
+def _frame_headers(cam_id: str) -> Dict[str, str]:
     headers = dict(UA)
     for file in CATALOG_FILES:
         try:
@@ -352,7 +360,10 @@ def fetch_camera_frame(cam_id: str) -> Tuple[bytes, str]:
                     headers.update(cat.get("headers") or {})
         except Exception:
             continue
-    resp = requests.get(cam["url"], headers=headers, timeout=15, stream=True)
+    return headers
+
+
+def _read_image(resp: requests.Response) -> Tuple[bytes, str]:
     resp.raise_for_status()
     ctype = resp.headers.get("Content-Type", "").split(";")[0].strip().lower()
     body = b""
@@ -368,6 +379,36 @@ def fetch_camera_frame(cam_id: str) -> Tuple[bytes, str]:
         else:
             raise ValueError("camera did not return an image")
     return body, ctype
+
+
+def fetch_camera_frame(cam_id: str) -> Tuple[bytes, str]:
+    """Fetch the current still for a catalogued camera. Only catalogued URLs are ever requested."""
+    cam = get_camera(cam_id)
+    if not cam:
+        raise LookupError("camera not found")
+    return _read_image(requests.get(cam["url"], headers=_frame_headers(cam_id), timeout=15, stream=True))
+
+
+_frame_cache: Dict[str, Tuple[float, bytes, str, str]] = {}
+
+
+def get_frame_cached(cam_id: str, max_age: float = 1.0) -> Tuple[bytes, str, str]:
+    """Latest still plus an ETag; fetches are shared for max_age seconds so many viewers cost one upstream request."""
+    import hashlib
+
+    now = time.time()
+    with _lock:
+        hit = _frame_cache.get(cam_id)
+    if hit and now - hit[0] < max_age:
+        return hit[1], hit[2], hit[3]
+    body, ctype = fetch_camera_frame(cam_id)
+    etag = '"' + hashlib.md5(body).hexdigest() + '"'
+    with _lock:
+        _frame_cache[cam_id] = (time.time(), body, ctype, etag)
+        if len(_frame_cache) > 200:
+            for key in sorted(_frame_cache, key=lambda k: _frame_cache[k][0])[:100]:
+                _frame_cache.pop(key, None)
+    return body, ctype, etag
 
 
 def describe_camera(cam_id: str, question: str = "") -> str:

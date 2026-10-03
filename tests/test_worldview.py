@@ -1,4 +1,4 @@
-import json
+﻿import json
 
 from tools import worldview as wv
 
@@ -182,3 +182,26 @@ def test_handle_chat_traffic_and_ships(monkeypatch):
     monkeypatch.setattr(wv, "get_ships", lambda bbox, listen_seconds=5.0: {"count": 1, "ships": [{"id": "9", "name": "ATLAS", "speed_kt": 8}]})
     out = wv.handle_chat("show me ships near long beach")
     assert "ATLAS" in out["reply"] and out["action"]["layers"] == ["ships"]
+
+
+def test_build_camera_adds_stream_and_video_fields():
+    cat = _cat(streamUrl="properties.hls", videoUrlTemplate="https://v.test/{id}.mp4")
+    row = {"properties": {"id": 3, "name": "n", "img": "https://x.test/a.jpg", "hls": "https://v.test/a.m3u8"}, "geometry": {"coordinates": [1, 2]}}
+    cam = wv._build_camera(cat, row)
+    assert cam["stream"] == "https://v.test/a.m3u8" and cam["video"] == "https://v.test/3.mp4"
+    assert wv._public_camera(cam)["stream"] == cam["stream"]
+
+
+def test_build_camera_ignores_insecure_stream():
+    cat = _cat(streamUrl="properties.hls")
+    row = {"properties": {"id": 3, "name": "n", "img": "https://x.test/a.jpg", "hls": "http://v.test/a.m3u8"}, "geometry": {"coordinates": [1, 2]}}
+    assert "stream" not in wv._build_camera(cat, row)
+
+
+def test_get_frame_cached_shares_fetches_and_sets_etag(monkeypatch):
+    calls = []
+    wv._frame_cache.clear()
+    monkeypatch.setattr(wv, "fetch_camera_frame", lambda cam_id: calls.append(cam_id) or (b"IMG", "image/jpeg"))
+    first = wv.get_frame_cached("t1:1", max_age=5)
+    second = wv.get_frame_cached("t1:1", max_age=5)
+    assert first == second and first[2].startswith('"') and len(calls) == 1

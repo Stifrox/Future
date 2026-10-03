@@ -1927,14 +1927,17 @@ def world_cameras(
 
 
 @app.get("/api/world/camera/frame")
-def world_camera_frame(id: str) -> Response:
+def world_camera_frame(id: str, request: Request) -> Response:
     try:
-        body, ctype = worldview.fetch_camera_frame(id)
+        body, ctype, etag = worldview.get_frame_cached(id)
     except LookupError:
         raise HTTPException(status_code=404, detail="Camera not found")
     except Exception:
         raise HTTPException(status_code=502, detail="Camera feed unavailable")
-    return Response(content=body, media_type=ctype, headers={"Cache-Control": "no-store"})
+    headers = {"Cache-Control": "no-cache", "ETag": etag}
+    if request.headers.get("if-none-match") == etag:
+        return Response(status_code=304, headers=headers)
+    return Response(content=body, media_type=ctype, headers=headers)
 
 
 @app.get("/api/world/camera/describe")

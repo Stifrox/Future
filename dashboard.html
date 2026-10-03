@@ -1131,7 +1131,7 @@
   .world-pin{ font-size:18px; line-height:1; text-shadow:0 0 4px #000; filter:drop-shadow(0 0 2px rgba(0,0,0,.8)); }
   .world-viewer{ position:absolute; right:14px; bottom:14px; width:420px; max-width:calc(100% - 28px); background:var(--bg-panel); border:1px solid var(--border-bright); border-radius:var(--radius-s); box-shadow:0 12px 40px rgba(0,0,0,.6); display:none; z-index:1000; }
   .world-viewer.open{ display:block; }
-  .world-viewer img{ display:block; width:100%; background:#080a0d; min-height:120px; object-fit:contain; max-height:300px; }
+  .world-viewer img, .world-viewer video{ display:block; width:100%; background:#080a0d; min-height:120px; object-fit:contain; max-height:300px; }
   .world-viewer-meta{ padding:8px 10px; font-size:12px; color:var(--text-2); display:flex; flex-direction:column; gap:6px; }
   .world-viewer-actions{ display:flex; gap:6px; flex-wrap:wrap; }
   .world-desc{ font-size:12px; color:var(--text-1); line-height:1.4; }
@@ -2548,9 +2548,11 @@
   <div class="world-main">
     <div id="world-map"></div>
     <div class="world-viewer" id="world-viewer">
-      <img id="world-viewer-img" alt="Camera feed">
+      <img id="world-viewer-img" alt="Camera feed" style="display:none">
+      <video id="world-viewer-video" muted autoplay playsinline controls style="display:none"></video>
       <div class="world-viewer-meta">
         <div id="world-viewer-title"></div>
+        <div id="world-viewer-badge" style="font-size:10px;letter-spacing:.06em;color:var(--steel);"></div>
         <div class="world-viewer-actions">
           <button class="btn" type="button" id="world-viewer-refresh">Refresh</button>
           <button class="btn" type="button" id="world-viewer-describe">Ask Future</button>
@@ -5496,7 +5498,7 @@ const WorldView = {
     this.count('cameras', total || cameras.length);
     const list = document.getElementById('world-list');
     list.innerHTML = cameras.slice(0, 80).map((cam, i) =>
-      `<div class="world-list-item" data-i="${i}"><span>\u{1F4F7}</span><div>${escapeHtml(cam.name)}<small>${escapeHtml(cam.provider)}${cam.distance_km != null ? ` \u00B7 ${cam.distance_km} km` : ''}</small></div></div>`).join('');
+      `<div class="world-list-item" data-i="${i}"><span>\u{1F4F7}</span><div>${escapeHtml(cam.name)}<small>${escapeHtml(cam.provider)}${cam.distance_km != null ? ` \u00B7 ${cam.distance_km} km` : ''}${cam.stream || cam.video ? ' \u00B7 \u25B6 live video' : ''}</small></div></div>`).join('');
     list.querySelectorAll('.world-list-item').forEach((el) => el.addEventListener('click', () => {
       const cam = cameras[Number(el.dataset.i)];
       this.map.setView([cam.lat, cam.lon], Math.max(this.map.getZoom(), 12));
@@ -5604,15 +5606,123 @@ const WorldView = {
     document.getElementById('world-viewer').classList.add('open');
     document.getElementById('world-viewer-title').textContent = `${cam.name} \u00B7 ${cam.provider}`;
     document.getElementById('world-viewer-desc').textContent = '';
-    this.reloadFrame();
-    clearInterval(this.frameTimer);
-    this.frameTimer = setInterval(() => this.reloadFrame(), 10000);
+    this.startPlayback();
   },
-  reloadFrame() {
-    if (!this.camera) return;
-    document.getElementById('world-viewer-img').src = this.url(`/api/world/camera/frame?id=${encodeURIComponent(this.camera.id)}&t=${Date.now()}`);
+  loadHlsJs() {
+    if (window.Hls) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      const js = document.createElement('script');
+      js.src = 'https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.min.js';
+      js.onload = resolve;
+      js.onerror = () => reject(new Error('video library failed to load'));
+      document.head.appendChild(js);
+    });
   },
-  closeViewer() { document.getElementById('world-viewer').classList.remove('open'); clearInterval(this.frameTimer); this.camera = null; },
+  async playHls(video, src) {
+    if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      video.src = src;
+    } else {
+      await this.loadHlsJs();
+      if (!window.Hls.isSupported()) throw new Error('HLS unsupported');
+      this.hls = new window.Hls({ lowLatencyMode: true, liveSyncDurationCount: 2, maxBufferLength: 6 });
+      this.hls.loadSource(src);
+      this.hls.attachMedia(video);
+    }
+    await new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('stream timed out')), 10000);
+      video.onplaying = () => { clearTimeout(timer); resolve(); };
+      video.onerror = () => { clearTimeout(timer); reject(new Error('stream error')); };
+      if (this.hls) this.hls.on(window.Hls.Events.ERROR, (_, d) => { if (d.fatal) { clearTimeout(timer); reject(new Error('stream error')); } });
+      video.play().catch(() => {});
+    });
+  },
+  stopPlayback() {
+    this.playToken = (this.playToken || 0) + 1;
+    if (this.hls) { this.hls.destroy(); this.hls = null; }
+    const video = document.getElementById('world-viewer-video');
+    const img = document.getElementById('world-viewer-img');
+    video.onplaying = video.onerror = null;
+    video.pause();
+    video.removeAttribute('src');
+    video.load();
+    if (img.src && img.src.startsWith('blob:')) URL.revokeObjectURL(img.src);
+    img.removeAttribute('src');
+    video.style.display = 'none';
+    img.style.display = 'none';
+  },
+  async startPlayback() {
+    const cam = this.camera;
+    if (!cam) return;
+    this.stopPlayback();
+    const token = this.playToken;
+    const video = document.getElementById('world-viewer-video');
+    const img = document.getElementById('world-viewer-img');
+    const badge = document.getElementById('world-viewer-badge');
+    badge.textContent = 'Connecting...';
+    if (cam.stream) {
+      try {
+        video.loop = false;
+        await this.playHls(video, cam.stream);
+        if (token !== this.playToken) return;
+        video.style.display = 'block';
+        badge.textContent = 'LIVE VIDEO';
+        return;
+      } catch (_) {
+        if (token !== this.playToken) return;
+        if (this.hls) { this.hls.destroy(); this.hls = null; }
+        video.removeAttribute('src');
+      }
+    }
+    if (cam.video) {
+      try {
+        video.loop = true;
+        video.src = cam.video;
+        await video.play();
+        if (token !== this.playToken) return;
+        video.style.display = 'block';
+        badge.textContent = 'LIVE CLIP (looping)';
+        return;
+      } catch (_) {
+        if (token !== this.playToken) return;
+        video.removeAttribute('src');
+      }
+    }
+    img.style.display = 'block';
+    badge.textContent = 'LIVE \u00B7 updates as fast as this camera publishes';
+    this.pollFrames(token, cam, img);
+  },
+  async pollFrames(token, cam, img) {
+    let etag = '';
+    let delay = 1000;
+    let lastChange = Date.now();
+    let failures = 0;
+    const url = this.url(`/api/world/camera/frame?id=${encodeURIComponent(cam.id)}`);
+    while (token === this.playToken) {
+      try {
+        const res = await fetch(url, { headers: etag ? { 'If-None-Match': etag } : {}, cache: 'no-store' });
+        failures = 0;
+        if (res.status === 200) {
+          const blob = await res.blob();
+          if (token !== this.playToken) return;
+          const next = URL.createObjectURL(blob);
+          const prev = img.src;
+          img.src = next;
+          if (prev && prev.startsWith('blob:')) URL.revokeObjectURL(prev);
+          etag = res.headers.get('ETag') || '';
+          const now = Date.now();
+          delay = Math.min(3000, Math.max(500, (now - lastChange) / 3));
+          lastChange = now;
+        }
+      } catch (_) {
+        failures += 1;
+        if (failures >= 5) { document.getElementById('world-viewer-badge').textContent = 'Camera feed unavailable'; return; }
+        delay = 3000;
+      }
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  },
+  reloadFrame() { this.startPlayback(); },
+  closeViewer() { document.getElementById('world-viewer').classList.remove('open'); this.stopPlayback(); this.camera = null; },
   async describe() {
     if (!this.camera) return;
     const out = document.getElementById('world-viewer-desc');
