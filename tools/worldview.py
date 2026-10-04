@@ -709,62 +709,109 @@ def _opensky_aircraft(lat: float, lon: float, radius_nm: float) -> Optional[Dict
 # ---------------------------------------------------------------- ships (AISStream, needs AISSTREAM_API_KEY)
 
 _ships: Dict[str, Dict[str, Any]] = {}
-_SHIP_TTL = 15 * 60
+_SHIP_TTL = 30 * 60
+_REGION_TTL = 6 * 3600
+_MAX_REGIONS = 12
+_ais: Dict[str, Any] = {"thread": None, "regions": {}, "version": 0, "error": ""}
 
 
-async def _collect_ships(bbox: Tuple[float, float, float, float], seconds: float) -> None:
+def _ais_boxes() -> List[List[List[float]]]:
+    return [[[r[0], r[1]], [r[2], r[3]]] for r in _ais["regions"]]
+
+
+def _ais_register(bbox: Tuple[float, float, float, float]) -> bool:
+    """Track this area on the shared stream; returns True when the area is new."""
+    key = tuple(round(v, 1) for v in bbox)
+    now = time.time()
+    with _lock:
+        for k in [k for k, ts in _ais["regions"].items() if now - ts > _REGION_TTL]:
+            _ais["regions"].pop(k, None)
+            _ais["version"] += 1
+        is_new = key not in _ais["regions"]
+        _ais["regions"][key] = now
+        if is_new:
+            while len(_ais["regions"]) > _MAX_REGIONS:
+                oldest = min(_ais["regions"], key=_ais["regions"].get)
+                _ais["regions"].pop(oldest, None)
+            _ais["version"] += 1
+    return is_new
+
+
+def _ais_store(msg: Dict[str, Any]) -> None:
+    meta, pos = msg.get("MetaData", {}), msg.get("Message", {}).get("PositionReport")
+    if not pos or meta.get("latitude") is None:
+        return
+    mmsi = str(meta.get("MMSI", ""))
+    heading = pos.get("TrueHeading")
+    _ships[mmsi] = {
+        "id": mmsi,
+        "name": (meta.get("ShipName") or "").strip() or mmsi,
+        "lat": meta["latitude"],
+        "lon": meta["longitude"],
+        "speed_kt": pos.get("Sog"),
+        "course": pos.get("Cog"),
+        "heading": heading if heading is not None and heading < 360 else pos.get("Cog"),
+        "status": pos.get("NavigationalStatus"),
+        "seen": time.time(),
+    }
+
+
+async def _ais_main() -> None:
     import asyncio
 
     import websockets
 
-    s, w, n, e = bbox
-    sub = {
-        "APIKey": _env("AISSTREAM_API_KEY"),
-        "BoundingBoxes": [[[s, w], [n, e]]],
-        "FilterMessageTypes": ["PositionReport"],
-    }
-    deadline = time.time() + seconds
-    async with websockets.connect("wss://stream.aisstream.io/v0/stream", open_timeout=10) as ws:
-        await ws.send(json.dumps(sub))
-        while time.time() < deadline:
-            try:
-                raw = await asyncio.wait_for(ws.recv(), timeout=max(0.1, deadline - time.time()))
-            except asyncio.TimeoutError:
-                break
-            msg = json.loads(raw)
-            if "error" in msg:
-                raise RuntimeError(str(msg["error"])[:100])
-            meta, pos = msg.get("MetaData", {}), msg.get("Message", {}).get("PositionReport")
-            if not pos or meta.get("latitude") is None:
-                continue
-            mmsi = str(meta.get("MMSI", ""))
-            heading = pos.get("TrueHeading")
-            _ships[mmsi] = {
-                "id": mmsi,
-                "name": (meta.get("ShipName") or "").strip() or mmsi,
-                "lat": meta["latitude"],
-                "lon": meta["longitude"],
-                "speed_kt": pos.get("Sog"),
-                "course": pos.get("Cog"),
-                "heading": heading if heading is not None and heading < 360 else pos.get("Cog"),
-                "status": pos.get("NavigationalStatus"),
-                "seen": time.time(),
-            }
+    backoff = 2
+    while True:
+        try:
+            async with websockets.connect("wss://stream.aisstream.io/v0/stream", open_timeout=10, ping_interval=20) as ws:
+                sent_version = -1
+                while True:
+                    if sent_version != _ais["version"]:
+                        boxes = _ais_boxes()
+                        sent_version = _ais["version"]
+                        if boxes:
+                            await ws.send(json.dumps({"APIKey": _env("AISSTREAM_API_KEY"), "BoundingBoxes": boxes, "FilterMessageTypes": ["PositionReport"]}))
+                    try:
+                        raw = await asyncio.wait_for(ws.recv(), timeout=2)
+                    except asyncio.TimeoutError:
+                        continue
+                    msg = json.loads(raw)
+                    if "error" in msg:
+                        _ais["error"] = str(msg["error"])[:100]
+                        raise RuntimeError(_ais["error"])
+                    _ais["error"] = ""
+                    backoff = 2
+                    _ais_store(msg)
+        except Exception as exc:
+            _ais["error"] = _ais["error"] or str(exc)[:100] or exc.__class__.__name__
+            _ais["version"] += 1  # resubscribe after reconnect
+            await asyncio.sleep(backoff)
+            backoff = min(60, backoff * 2)
 
 
-def get_ships(bbox: Tuple[float, float, float, float], listen_seconds: float = 5.0) -> Dict[str, Any]:
-    if not _env("AISSTREAM_API_KEY"):
-        return {"count": 0, "ships": [], "error": "AISSTREAM_API_KEY not set"}
+def _ais_ensure_listener() -> None:
     import asyncio
 
+    with _lock:
+        thread = _ais["thread"]
+        if thread and thread.is_alive():
+            return
+        thread = threading.Thread(target=lambda: asyncio.run(_ais_main()), name="ais-listener", daemon=True)
+        _ais["thread"] = thread
+        thread.start()
+
+
+def get_ships(bbox: Tuple[float, float, float, float], listen_seconds: float = 6.0) -> Dict[str, Any]:
+    if not _env("AISSTREAM_API_KEY"):
+        return {"count": 0, "ships": [], "error": "AISSTREAM_API_KEY not set"}
     s, w, n, e = bbox
     if (n - s) > 40 or (e - w) > 60:  # keep the subscription regional
         return {"count": 0, "ships": [], "error": "zoom in to see ships"}
-    error = None
-    try:
-        asyncio.run(_collect_ships(bbox, listen_seconds))
-    except Exception as exc:
-        error = str(exc)[:120] or exc.__class__.__name__
+    is_new = _ais_register(bbox)
+    _ais_ensure_listener()
+    if is_new:
+        time.sleep(listen_seconds)  # first look at an area: let the stream deliver something
     now = time.time()
     for mmsi in [k for k, v in _ships.items() if now - v["seen"] > _SHIP_TTL]:
         _ships.pop(mmsi, None)
@@ -772,8 +819,8 @@ def get_ships(bbox: Tuple[float, float, float, float], listen_seconds: float = 5
     for v in out:
         v["age_s"] = int(now - v.pop("seen"))
     res: Dict[str, Any] = {"count": len(out), "ships": out}
-    if error and not out:
-        res["error"] = error
+    if _ais["error"] and not out:
+        res["error"] = _ais["error"]
     return res
 
 
@@ -1007,12 +1054,23 @@ def handle_chat(message: str) -> Optional[Dict[str, Any]]:
             return {"reply": f"Fire data needs a free NASA FIRMS key (FIRMS_MAP_KEY). {res['error']}.", "action": None}
         return {"reply": f"{res['count']} active fire detections in the last 24h{' near ' + place if place else ''}. Plotted on the World tab.", "action": {"type": "world", "layers": ["fires"], "center": [lat, lon]}}
 
+    if _SHIP_RE.search(low) and _AIR_RE.search(low) and _VERB_RE.search(low):
+        lat, lon, place, bb = _resolve_center(text)
+        box = tuple(bb) if bb and (bb[2] - bb[0]) < 20 and (bb[3] - bb[1]) < 30 else (lat - 2, lon - 3, lat + 2, lon + 3)
+        ships, air = get_ships(box), get_aircraft(lat, lon, 150)
+        where = place or "you"
+        parts = [f"{air['count']} aircraft within 150 nm of {where}"]
+        parts.append(f"{ships['count']} vessels in range" if ships["count"] else f"no vessels tracked near {where}" + ("" if place else " (try 'ships near Long Beach')"))
+        return {"reply": "; ".join(parts) + ". Both layers are on the World tab.", "action": {"type": "world", "layers": ["aircraft", "ships"], "center": [lat, lon], "zoom": 8}}
+
     if _SHIP_RE.search(low) and _VERB_RE.search(low):
         lat, lon, place, bb = _resolve_center(text)
         box = tuple(bb) if bb and (bb[2] - bb[0]) < 20 and (bb[3] - bb[1]) < 30 else (lat - 2, lon - 3, lat + 2, lon + 3)
         res = get_ships(box)
         if res.get("error") and not res["ships"]:
             return {"reply": f"Ship tracking isn't available right now: {res['error']}.", "action": None}
+        if not res["ships"] and not place:
+            return {"reply": "No vessels tracked near you, which makes sense inland. Try 'ships near Long Beach' or any port or coast.", "action": {"type": "world", "layers": ["ships"], "center": [lat, lon], "zoom": 6}}
         moving = [s for s in res["ships"] if (s.get("speed_kt") or 0) > 1]
         named = [s for s in res["ships"] if s["name"] != s["id"]][:5]
         names = ", ".join(s["name"] for s in named)

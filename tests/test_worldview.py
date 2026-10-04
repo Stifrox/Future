@@ -150,12 +150,30 @@ def test_ships_returns_cached_in_bbox(monkeypatch):
     wv._ships["1"] = {"id": "1", "name": "A", "lat": 10, "lon": 10, "speed_kt": 5, "course": 0, "heading": 0, "status": 0, "seen": wv.time.time()}
     wv._ships["2"] = {"id": "2", "name": "B", "lat": 50, "lon": 50, "speed_kt": 5, "course": 0, "heading": 0, "status": 0, "seen": wv.time.time()}
 
-    async def noop(bbox, seconds):
-        return None
-
-    monkeypatch.setattr(wv, "_collect_ships", noop)
+    monkeypatch.setattr(wv, "_ais_ensure_listener", lambda: None)
+    monkeypatch.setattr(wv.time, "sleep", lambda s: None)
     res = wv.get_ships((5, 5, 15, 15))
     assert [s["id"] for s in res["ships"]] == ["1"]
+
+
+def test_ship_regions_register_once_and_are_capped():
+    wv._ais["regions"].clear()
+    assert wv._ais_register((5, 5, 15, 15)) is True
+    assert wv._ais_register((5, 5, 15, 15)) is False
+    for i in range(20):
+        wv._ais_register((i, i, i + 1, i + 1))
+    assert len(wv._ais["regions"]) <= wv._MAX_REGIONS
+    wv._ais["regions"].clear()
+
+
+def test_ais_store_keeps_latest_position_per_vessel():
+    wv._ships.clear()
+    msg = {"MetaData": {"MMSI": 7, "ShipName": "ATLAS ", "latitude": 1.5, "longitude": 2.5}, "Message": {"PositionReport": {"Sog": 9, "Cog": 80, "TrueHeading": 511}}}
+    wv._ais_store(msg)
+    msg["MetaData"]["latitude"] = 1.6
+    wv._ais_store(msg)
+    assert len(wv._ships) == 1 and wv._ships["7"]["lat"] == 1.6 and wv._ships["7"]["name"] == "ATLAS" and wv._ships["7"]["heading"] == 80
+    wv._ships.clear()
 
 
 def test_opensky_fallback_parsing(monkeypatch):

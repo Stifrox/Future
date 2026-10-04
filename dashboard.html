@@ -2533,7 +2533,7 @@
     </form>
     <div class="world-layers" id="world-layers">
       <label><input type="checkbox" data-layer="cameras" checked> 📷 Cameras <span class="cnt" id="wc-cameras"></span></label>
-      <label><input type="checkbox" data-layer="aircraft"> ✈️ Aircraft <span class="cnt" id="wc-aircraft"></span></label>
+      <label><input type="checkbox" data-layer="aircraft" checked> ✈️ Aircraft <span class="cnt" id="wc-aircraft"></span></label>
       <label><input type="checkbox" data-layer="quakes"> 🌋 Quakes <span class="cnt" id="wc-quakes"></span></label>
       <label><input type="checkbox" data-layer="satellites"> 🛰️ Satellites <span class="cnt" id="wc-satellites"></span></label>
       <label><input type="checkbox" data-layer="launches"> 🚀 Launches <span class="cnt" id="wc-launches"></span></label>
@@ -5442,7 +5442,11 @@ const WorldView = {
     if (action.sat_group) this.satGroup = action.sat_group;
     if (action.feed) this.quakeFeed = action.feed;
     this.military = !!action.military;
-    this.names.forEach((name) => this.setLayer(name, layers.includes(name)));
+    this.names.forEach((name) => {
+      const on = layers.includes(name);
+      this.setLayer(name, on);
+      if (!on) { this.groups[name].clearLayers(); this.count(name, null); }
+    });
     if (action.cameras) {
       this.current = { cameras: action.cameras, label: action.query };
       this.renderCameras(action.cameras, action.query);
@@ -5565,9 +5569,7 @@ const WorldView = {
     const group = this.groups.ships; group.clearLayers();
     if (data.error) { this.status(`ships: ${data.error}`); return; }
     data.ships.forEach((s) => {
-      const rot = Math.round((s.heading || 0) - 90);
-      const icon = `<span style="display:inline-block;transform:rotate(${rot}deg)">\u{1F6A2}</span>`;
-      this.pin('ships', s.lat, s.lon, icon).bindPopup(`<b>${escapeHtml(s.name)}</b><br>MMSI ${escapeHtml(s.id)}<br>${s.speed_kt != null ? s.speed_kt + ' kt' : ''}`).addTo(group);
+      this.pin('ships', s.lat, s.lon).bindPopup(`<b>${escapeHtml(s.name)}</b><br>MMSI ${escapeHtml(s.id)}<br>${s.speed_kt != null ? s.speed_kt + ' kt' : ''}`).addTo(group);
     });
     this.count('ships', data.count);
   },
