@@ -25,6 +25,8 @@ from tools.integrations import (
     handle_calendar_command,
     handle_gmail_command,
     handle_spotify_command,
+    execute_calendar_push_blocks,
+    google_calendar_connected,
     has_pending_calendar_draft,
     should_handle_calendar_followup,
 )
@@ -1695,6 +1697,64 @@ def _try_model_candidates(messages, max_tokens: int, reasoning_effort: Optional[
     return None
 
 
+_TIME_TOKEN_RE = re.compile(r"\b\d{1,2}(?::\d{2})?\s*(?:am|pm)\b|\b\d{1,2}:\d{2}\b", re.I)
+_CALENDAR_CLAIM_RE = re.compile(r"calendar|calender", re.I)
+_CALENDAR_DONE_RE = re.compile(r"\b(done|added|are now on|is now on|put (?:them|it)|scheduled|all set)\b", re.I)
+
+
+def _extract_and_push_calendar(source_text: str, client_time: Optional[str] = None) -> Optional[str]:
+    """Have the model turn free text into events, then really create them on Google Calendar."""
+    import json as _json
+    from tools.integrations import create_google_calendar_events_batch
+
+    now_text = time_context(client_time)
+    today = datetime.now(ZoneInfo("America/Chicago")).strftime("%A %Y-%m-%d")
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "Extract calendar events from the conversation. Output ONLY a JSON array, no prose, no code fences. "
+                'Each item: {"title": str, "start": "YYYY-MM-DDTHH:MM:SS", "end": "YYYY-MM-DDTHH:MM:SS"}. '
+                "Use the latest plan the assistant proposed or the user stated. 'Tomorrow' is the day after today. "
+                "Reminders without a duration get a 15 minute end. Output [] if there is nothing to schedule. "
+                f"Today is {today} (US Central). {now_text}"
+            ),
+        },
+        {"role": "user", "content": source_text[-6000:]},
+    ]
+    raw = _try_model_candidates(messages, 1500, reasoning_effort="low")
+    if not raw:
+        return None
+    match = re.search(r"\[.*\]", raw, re.S)
+    try:
+        events = _json.loads(match.group(0)) if match else []
+    except Exception:
+        return None
+    if not isinstance(events, list) or not events:
+        return None
+
+    if not google_calendar_connected():
+        return "Google Calendar is not connected yet. Say 'connect calendar' and I'll start authorization."
+    created, failed = create_google_calendar_events_batch(events)
+    lines = []
+    if created:
+        lines.append(f"Added {len(created)} event(s) to your Google Calendar:")
+        for item in created:
+            lines.append(f"- {item['title']} ({item['start'][:16].replace('T', ' ')})")
+    if failed:
+        lines.append("Could not add: " + "; ".join(f"{f['title']} ({f['error']})" for f in failed))
+    return "\n".join(lines) or None
+
+
+def _recent_text(recent_context) -> str:
+    lines = []
+    for item in (recent_context or [])[-12:]:
+        if isinstance(item, dict) and str(item.get("content", "")).strip():
+            who = "Future" if str(item.get("role", "")).lower() == "assistant" else "User"
+            lines.append(f"{who}: {item['content']}")
+    return "\n".join(lines)
+
+
 def generate_opening_greeting(client_time: Optional[str] = None) -> str:
     """Generate a one-off, time-aware opening line in Future's voice (not stored as a chat turn)."""
     personality = load_personality()
@@ -1728,6 +1788,19 @@ def handle_query(query: str, recent_context=None, client_time: Optional[str] = N
     query = (query or "").strip()
     if not query:
         return "I didn't catch that."
+
+    ql = query.lower()
+    if (
+        _looks_like_calendar_intent(ql)
+        and any(v in ql for v in ("put", "add", "push", "schedule", "sync", "save"))
+        and len(_TIME_TOKEN_RE.findall(query)) >= 2
+    ):
+        try:
+            batch_reply = _extract_and_push_calendar(query, client_time)
+            if batch_reply:
+                return batch_reply
+        except Exception as exc:
+            return f"Calendar push failed: {exc}"
 
     local_reply = _handle_local_intents(query)
     if local_reply:
@@ -1767,10 +1840,44 @@ def handle_query(query: str, recent_context=None, client_time: Optional[str] = N
 
     if messages and messages[0].get("role") == "system":
         system_content = str(messages[0].get("content", "")).strip()
-        messages[0]["content"] = f"{system_content}\n\nCurrent response style: {style_directive}"
+        messages[0]["content"] = (
+            f"{system_content}\n\nCurrent response style: {style_directive}\n\n"
+            "Calendar tool: you CAN write to the user's Google Calendar. Once the user has confirmed a plan "
+            "(or asks you to add several events), do not say you will do it later; include in your reply exactly one block "
+            '<calendar_push>[{"title":"...","start":"2026-10-10T09:00:00","end":"2026-10-10T09:50:00"}, ...]</calendar_push> '
+            "with ALL events as local ISO datetimes (use the current date/time context for the correct day). "
+            "The system executes it and replaces the block with the real result, so never claim success beyond that. "
+            + (
+                "Google Calendar and Gmail ARE already authorized right now: never ask for an auth code or URL, "
+                "ignore any earlier messages in this chat saying otherwise."
+                if google_calendar_connected()
+                else "Google Calendar is not connected yet; tell the user to say 'connect calendar'."
+            )
+        )
+
+    if "calendar" in query.lower() or "calender" in query.lower() or len(query) < 40:
+        max_tokens = max(max_tokens, 1800)
 
     cleaned = _try_model_candidates(messages, max_tokens, reasoning_effort=reasoning_effort)
     if cleaned:
+        had_block = "<calendar_push" in cleaned.lower()
+        try:
+            cleaned = execute_calendar_push_blocks(cleaned)
+        except Exception as exc:
+            cleaned = f"{cleaned}\n\nCalendar push failed: {exc}"
+        # The model sometimes claims it scheduled things without emitting the block; do it for real.
+        if (
+            not had_block
+            and _CALENDAR_CLAIM_RE.search(cleaned)
+            and _CALENDAR_DONE_RE.search(cleaned)
+            and _TIME_TOKEN_RE.search(cleaned)
+        ):
+            try:
+                real = _extract_and_push_calendar(f"{_recent_text(recent_context)}\nUser: {query}\nFuture: {cleaned}", client_time)
+                if real:
+                    cleaned = real
+            except Exception as exc:
+                cleaned = f"{cleaned}\n\n(Calendar push failed: {exc})"
         if memory is not None:
             remember(memory, query, cleaned)
             save_memory(memory)

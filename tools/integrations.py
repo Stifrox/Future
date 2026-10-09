@@ -4,6 +4,7 @@ import os
 import re
 import ssl
 import threading
+import time
 import urllib.parse
 import webbrowser
 import base64
@@ -1094,6 +1095,92 @@ def create_google_calendar_event(title, details="", start_time=None, end_time=No
     return payload
 
 
+def google_calendar_connected():
+    load_google_calendar_tokens_into_globals()
+    return bool(GOOGLE_CALENDAR_ACCESS_TOKEN or GOOGLE_CALENDAR_REFRESH_TOKEN)
+
+
+def _calendar_error_reply(exc):
+    status = getattr(getattr(exc, "response", None), "status_code", None)
+    if status == 401 or (isinstance(exc, requests.HTTPError) and status == 400 and "invalid_grant" in str(getattr(exc.response, "text", ""))):
+        return request_google_calendar_authorization("Creating calendar events needs your Google account connected.")
+    return f"Google Calendar error: {str(exc)[:200]}"
+
+
+def _local_iso(value):
+    """Return an ISO datetime with an offset; naive values get the local timezone."""
+    parsed = datetime.datetime.fromisoformat(str(value).strip())
+    if parsed.tzinfo is None:
+        parsed = parsed.astimezone()
+    return parsed.isoformat()
+
+
+def _create_event_with_retry(title, details, start_iso, end_iso, attempts=4):
+    delay = 1.5
+    last_exc = None
+    for attempt in range(attempts):
+        try:
+            return create_google_calendar_event(title, details, start_iso, end_iso)
+        except requests.HTTPError as exc:
+            last_exc = exc
+            status = getattr(exc.response, "status_code", 0)
+            if status not in (403, 429, 500, 502, 503, 504) or attempt == attempts - 1:
+                break
+        except requests.RequestException as exc:
+            last_exc = exc
+            if attempt == attempts - 1:
+                break
+        time.sleep(delay)
+        delay *= 2
+    raise last_exc
+
+
+def create_google_calendar_events_batch(events):
+    """Create many events one at a time with retry/backoff. Returns (created, failed) lists."""
+    created, failed = [], []
+    for item in events or []:
+        title = str((item or {}).get("title") or (item or {}).get("summary") or "").strip()
+        try:
+            if not title:
+                raise ValueError("missing title")
+            start_iso = _local_iso(item["start"])
+            end_raw = item.get("end")
+            end_iso = _local_iso(end_raw) if end_raw else None
+            details = str(item.get("details") or item.get("description") or "Created from Future")
+            event = _create_event_with_retry(title, details, start_iso, end_iso)
+            created.append({"title": title, "start": start_iso, "id": event.get("id")})
+        except Exception as exc:
+            failed.append({"title": title or "?", "error": str(exc)[:160]})
+        time.sleep(0.4)
+    return created, failed
+
+
+CALENDAR_PUSH_RE = re.compile(r"<calendar_push>(.*?)</calendar_push>", re.S | re.I)
+
+
+def execute_calendar_push_blocks(reply):
+    """Run any <calendar_push>[json]</calendar_push> blocks in a model reply and replace them with real results."""
+    if not reply or "<calendar_push" not in reply.lower():
+        return reply
+
+    def _run(match):
+        raw = match.group(1).strip()
+        raw = re.sub(r"^```(?:json)?|```$", "", raw, flags=re.M).strip()
+        try:
+            events = json.loads(raw)
+            if isinstance(events, dict):
+                events = events.get("events", [events])
+            created, failed = create_google_calendar_events_batch(events)
+        except Exception as exc:
+            return f"[Calendar push failed: {exc}]"
+        parts = [f"Added {len(created)} event(s) to your calendar."]
+        if failed:
+            parts.append("Failed: " + "; ".join(f"{f['title']} ({f['error']})" for f in failed))
+        return " ".join(parts)
+
+    return CALENDAR_PUSH_RE.sub(_run, reply).strip()
+
+
 def list_google_calendar_events(range_name="today", max_results=8, calendar_id="primary"):
     """List upcoming events and normalize them for UI rendering."""
     load_google_calendar_tokens_into_globals()
@@ -1448,8 +1535,8 @@ def handle_calendar_command(command):
                 if "access token" in str(exc).lower() or "refresh token" in str(exc).lower():
                     return request_google_calendar_authorization("Creating calendar events needs your Google account connected.")
                 return str(exc)
-            except Exception:
-                return request_google_calendar_authorization("Creating calendar events needs your Google account connected.")
+            except Exception as exc:
+                return _calendar_error_reply(exc)
 
             return _format_created_event_confirmation(created_event, title, followup_start, followup_end)
 
@@ -1471,8 +1558,8 @@ def handle_calendar_command(command):
             if "access token" in str(exc).lower() or "refresh token" in str(exc).lower():
                 return request_google_calendar_authorization("Creating calendar events needs your Google account connected.")
             return str(exc)
-        except Exception:
-            return request_google_calendar_authorization("Creating calendar events needs your Google account connected.")
+        except Exception as exc:
+            return _calendar_error_reply(exc)
 
         PENDING_CALENDAR_DRAFT = None
         return _format_created_event_confirmation(created_event, title, start_time, end_time)
