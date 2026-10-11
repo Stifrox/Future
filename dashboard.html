@@ -3799,6 +3799,12 @@ function parseImageEditPrompt(text) {
     .trim();
 }
 
+let lastChatImage = { dataUrl: '', context: [], editing: false };
+
+function isImageEditIntent(text) {
+  return /\b(edit|modify|recolou?r|restyle|remix|redraw|make\s+(?:it|this|that|the\s+(?:image|logo|picture))|change\s+(?:it|this|that|the)|turn\s+(?:it|this|that)|shades?\s+(?:to|of)\s+(?:it|this|that))\b/i.test(String(text || ''));
+}
+
 function looksLikeImageGenerateIntent(text) {
   const lowered = String(text || '').toLowerCase();
   return lowered.includes('image') && /(generate|create|make)/.test(lowered);
@@ -3923,7 +3929,9 @@ async function editImageInline(prompt, sourceDataUrl = pendingChatImageDataUrl) 
     addImageMessage('Future', dataUrl, `Edited image: ${prompt}`, 'future-edited.png');
     pendingChatImageDataUrl = dataUrl;
     pendingChatImageLabel = 'edited result';
-    pendingChatImages = [{ dataUrl, label: 'edited result' }];
+    lastChatImage = { dataUrl, context: [], editing: true };
+    pendingChatImages = [];
+    pendingChatImageDataUrl = '';
     renderChatAttachments();
     progress.complete('Edited image ready');
   } catch (error) {
@@ -4850,15 +4858,29 @@ async function speakReplyIfVoiceMode(text) {
 
 chatForm.addEventListener('submit', (e) => {
   e.preventDefault();
-  const val = chatInput.value.trim();
-  if (!val) return;
   const stagedImages = [...pendingChatImages];
   const stagedSource = stagedImages[0]?.dataUrl || pendingChatImageDataUrl;
+  const typed = chatInput.value.trim();
+  if (!typed && !stagedImages.length) return;
+  const val = typed || 'Describe this image.';
   const showStagedImages = () => {
     stagedImages.forEach((attachment) => {
       addImageMessage('You', attachment.dataUrl, `Attached image: ${attachment.label}`, attachment.label || 'attached-image.png');
     });
   };
+
+  // Follow-ups about the last image (e.g. "make it purple") edit it instead of going to plain chat.
+  if (!stagedImages.length && lastChatImage.dataUrl) {
+    const continuing = lastChatImage.editing && /\b(go ahead|shades?|gradient|hex|tone|darker|lighter|that|it)\b/i.test(val);
+    if (isImageEditIntent(val) || continuing) {
+      lastChatImage.editing = true;
+      lastChatImage.context.push(val);
+      chatInput.value = '';
+      addMessage('You', val);
+      editImageInline(lastChatImage.context.join('. '), lastChatImage.dataUrl);
+      return;
+    }
+  }
 
   if (looksLikeSelfUpdateIntent(val)) {
     chatInput.value = '';
@@ -4877,21 +4899,20 @@ chatForm.addEventListener('submit', (e) => {
     return;
   }
 
-  if (stagedSource && /\b(analy[sz]e|describe|what(?:'s| is) in)\b/i.test(val)) {
+  // Attached images are analyzed unless the user explicitly asks for an edit.
+  if (stagedImages.length) {
     chatInput.value = '';
-    addMessage('You', val);
+    if (typed) addMessage('You', val);
     showStagedImages();
     clearPendingChatImages();
-    analyzePendingImageInline(val, stagedSource);
-    return;
-  }
-
-  if (stagedSource) {
-    chatInput.value = '';
-    addMessage('You', val);
-    showStagedImages();
-    clearPendingChatImages();
-    editImageInline(val, stagedSource);
+    lastChatImage = { dataUrl: stagedSource, context: [], editing: false };
+    if (isImageEditIntent(val)) {
+      lastChatImage.editing = true;
+      lastChatImage.context.push(val);
+      editImageInline(val, stagedSource);
+    } else {
+      analyzePendingImageInline(val, stagedSource);
+    }
     return;
   }
 
