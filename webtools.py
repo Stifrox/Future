@@ -1096,6 +1096,48 @@ def organize_notes_text(raw_text: str, existing_content: str = "") -> str:
     return joined.strip()
 
 
+def generate_chat_title(message: str) -> str:
+    instructions = (
+        "Create a specific, accurate chat title in 3-7 words. Summarize the user's main goal; "
+        "do not copy the opening wording, answer the request, or use a generic title. "
+        "Return only the title, without quotes."
+    )
+    messages = [
+        {"role": "system", "content": instructions},
+        {"role": "user", "content": str(message or "")[:4000]},
+    ]
+    model_candidates = []
+    for candidate in [PRIMARY_MODEL, BACKUP_MODEL, ANTHROPIC_MODEL]:
+        model_name = (candidate or "").strip()
+        if model_name and model_name not in model_candidates:
+            model_candidates.append(model_name)
+
+    for model_name in model_candidates:
+        try:
+            if _is_anthropic_model(model_name):
+                title = _anthropic_reply(messages, model_name=model_name, max_tokens=64)
+            elif _client:
+                request = {
+                    "model": model_name,
+                    "messages": messages,
+                    "max_completion_tokens": 64,
+                }
+                if model_name.startswith("gpt-5"):
+                    request.update(reasoning_effort="minimal", verbosity="low")
+                response = _client.chat.completions.create(**request)
+                title = response.choices[0].message.content if response.choices else None
+            else:
+                title = None
+
+            if title:
+                title = _clean_model_text(str(title)).splitlines()[0].strip(" \t\"'`#*-")
+                if title:
+                    return title[:72].rstrip()
+        except Exception:
+            continue
+    return ""
+
+
 def _looks_like_content_creation_intent(query_lower: str) -> bool:
     return any(
         phrase in query_lower

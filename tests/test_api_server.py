@@ -30,15 +30,18 @@ def test_spotify_control_rejects_unknown_action():
 def test_chat_message_returns_reply(monkeypatch):
     api_server.CHAT_CONTEXT_LINES.clear()
     monkeypatch.setattr(api_server, "_chat_reply", lambda message, recent_context=None, client_time=None: f"echo:{message}")
+    monkeypatch.setattr(api_server, "_generate_chat_title", lambda message: "Greeting Future")
     response = client.post("/api/chat/message", json={"message": "hello"})
     assert response.status_code == 200
     assert response.json()["reply"] == "echo:hello"
+    assert response.json()["title"] == "Greeting Future"
 
 
 def test_chat_message_passes_recent_context(monkeypatch):
     api_server.CHAT_CONTEXT_LINES.clear()
     api_server.CHAT_CONTEXT_LINES.append({"role": "user", "content": "first"})
     api_server.CHAT_CONTEXT_LINES.append({"role": "assistant", "content": "reply1"})
+    monkeypatch.setattr(api_server, "_generate_chat_title", lambda message: "")
 
     captured = {}
 

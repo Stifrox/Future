@@ -395,6 +395,26 @@ def _chat_reply(message: str, recent_context=None, client_time: Optional[str] = 
     except Exception:
         return "I can help with schedule, inbox, prints, and files once the model config is ready."
 
+
+def _generate_chat_title(message: str) -> str:
+    try:
+        from webtools import generate_chat_title
+        return generate_chat_title(message)
+    except Exception:
+        return ""
+
+
+def _add_chat_turn(session: Dict[str, object], message: str, reply: str) -> Dict[str, object]:
+    should_generate_title = session["title"] == "New conversation" and not session["messages"]
+    updated = CHAT_SESSIONS.add_messages(
+        session["id"], [{"role": "user", "content": message}, {"role": "assistant", "content": reply}]
+    )
+    if should_generate_title:
+        title = _generate_chat_title(message)
+        if title:
+            updated = CHAT_SESSIONS.update(session["id"], title=title) or updated
+    return updated
+
 def _synthesize_elevenlabs_audio(text: str, voice_gender: str = "male") -> bytes:
     api_key = os.getenv("ELEVENLABS_API_KEY", "").strip()
     voice_id_male = os.getenv("ELEVENLABS_VOICE_ID", "").strip()
@@ -2037,9 +2057,7 @@ def chat_message(payload: ChatMessageRequest) -> Dict[str, object]:
         else:
             reply = _chat_reply(message, recent_context=recent_context, client_time=payload.client_time)
         normalized = _normalize_chat_reply(reply)
-        session = CHAT_SESSIONS.add_messages(
-            session["id"], [{"role": "user", "content": message}, {"role": "assistant", "content": normalized}]
-        )
+        session = _add_chat_turn(session, message, normalized)
         CHAT_SESSIONS.prune()
         CHAT_CONTEXT_LINES.append({"role": "user", "content": message})
         CHAT_CONTEXT_LINES.append({"role": "assistant", "content": normalized})
@@ -2057,9 +2075,7 @@ def chat_message(payload: ChatMessageRequest) -> Dict[str, object]:
         session = CHAT_SESSIONS.get(payload.session_id) if payload.session_id else None
         if not session:
             session = CHAT_SESSIONS.create()
-        session = CHAT_SESSIONS.add_messages(
-            session["id"], [{"role": "user", "content": message}, {"role": "assistant", "content": normalized}]
-        )
+        session = _add_chat_turn(session, message, normalized)
         CHAT_SESSIONS.prune()
         return {"reply": normalized, "session_id": session["id"], "title": session["title"]}
 

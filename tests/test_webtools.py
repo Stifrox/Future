@@ -4,6 +4,30 @@ from pathlib import Path
 import webtools
 
 
+def test_generate_chat_title_summarizes_with_configured_model(monkeypatch):
+    captured = {}
+
+    def fake_create(**kwargs):
+        captured.update(kwargs)
+        return SimpleNamespace(
+            choices=[SimpleNamespace(message=SimpleNamespace(content='"Balance Strength Training"'))]
+        )
+
+    monkeypatch.setattr(webtools, "PRIMARY_MODEL", "gpt-4.1-mini")
+    monkeypatch.setattr(webtools, "BACKUP_MODEL", "")
+    monkeypatch.setattr(webtools, "ANTHROPIC_MODEL", "")
+    monkeypatch.setattr(
+        webtools,
+        "_client",
+        SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=fake_create))),
+    )
+
+    title = webtools.generate_chat_title("Could you help me get stronger without overtraining?")
+
+    assert title == "Balance Strength Training"
+    assert "Summarize the user's main goal" in captured["messages"][0]["content"]
+
+
 def test_handle_query_uses_and_updates_long_term_memory(monkeypatch):
     captured = {}
     saved = {}
