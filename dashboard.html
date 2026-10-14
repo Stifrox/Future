@@ -3323,6 +3323,13 @@ let voiceLockEnabled = false;
 let voiceRecognizer = null;
 let voiceRestartTimer = null;
 let activeTtsAudio = null;
+let unlockedTtsAudio = null;
+// Mobile browsers only allow audio.play() on an element first played during a user gesture.
+document.addEventListener('pointerdown', () => {
+  if (unlockedTtsAudio) return;
+  unlockedTtsAudio = new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=');
+  unlockedTtsAudio.play().catch(() => {});
+}, { once: false, passive: true });
 let activeTtsObjectUrl = '';
 let voiceConversationUntil = 0;
 const VOICE_FOLLOWUP_WINDOW_MS = 25000;
@@ -4735,7 +4742,7 @@ async function sendChat(message, opts = {}) {
     addMessage('Future', replyText);
     if (res.ui_action && res.ui_action.type === 'world') WorldView.open(res.ui_action);
     refreshRecentChats();
-    await speakReplyIfVoiceMode(replyText);
+    await speakReplyIfVoiceMode(replyText, source === 'voice');
     setServiceLive('chat', true);
   } catch (e) {
     stopTyping();
@@ -4823,8 +4830,8 @@ const chatGreetingTs = document.querySelector('#chat-greeting-msg .ts');
 if (chatGreetingTs) chatGreetingTs.textContent = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 loadOpeningGreeting(chatGreetingBubble);
 
-async function speakReplyIfVoiceMode(text) {
-  if (!voiceLockEnabled && !mobileVoiceEnabled) return;
+async function speakReplyIfVoiceMode(text, fromVoice = false) {
+  if (!voiceLockEnabled && !mobileVoiceEnabled && !fromVoice) return;
   const trimmed = String(text || '').trim();
   if (!trimmed) return;
 
@@ -4849,7 +4856,8 @@ async function speakReplyIfVoiceMode(text) {
     }
 
     activeTtsObjectUrl = URL.createObjectURL(blob);
-    activeTtsAudio = new Audio(activeTtsObjectUrl);
+    activeTtsAudio = unlockedTtsAudio || new Audio();
+    activeTtsAudio.src = activeTtsObjectUrl;
     await activeTtsAudio.play();
   } catch (_) {
     // Keep chat flow uninterrupted when browser audio or network playback fails.
